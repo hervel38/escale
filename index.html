@@ -319,7 +319,7 @@ main{padding:14px var(--pad) 20px;max-width:640px;margin:0 auto}
   position:relative;background:var(--card);border:1px solid var(--line);
   border-radius:6px;margin-bottom:12px;overflow:hidden
 }
-.stub{padding:13px 14px 12px}
+.stub{padding:13px 14px 12px 42px}
 .fr{font-size:17px;font-weight:500;letter-spacing:-.01em}
 .perf{position:relative;height:1px;margin:0 12px;border-top:1.5px dashed var(--rule)}
 .perf::before,.perf::after{
@@ -338,6 +338,11 @@ main{padding:14px var(--pad) 20px;max-width:640px;margin:0 auto}
 .say:active{background:var(--signal);border-color:var(--signal);color:#12161A}
 .star{position:absolute;top:9px;right:9px;font-size:16px;color:var(--rule);padding:5px;line-height:1}
 .star[aria-pressed="true"]{color:var(--signal)}
+.done{position:absolute;top:9px;left:9px;font-size:17px;color:var(--rule);padding:5px;line-height:1}
+.done[aria-pressed="true"]{color:var(--stamp)}
+.ticket.maitrisee{border-color:var(--stamp)}
+.ticket.maitrisee .fr{color:var(--stamp)}
+.ticket.maitrisee .target{color:var(--stamp)}
 
 .stamp{
   position:absolute;right:16px;bottom:12px;transform:rotate(-13deg);
@@ -348,6 +353,18 @@ main{padding:14px var(--pad) 20px;max-width:640px;margin:0 auto}
 
 .rev-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
 .big-ticket .stub{padding:26px 18px 22px;min-height:112px;display:grid;align-items:center}
+.ecoute-now{background:var(--card);border:1px solid var(--line);border-radius:6px;
+  padding:22px 16px;margin-bottom:18px;text-align:center;min-height:104px;
+  display:grid;align-content:center;gap:6px}
+.ecoute-now .fr2{font-size:18px;font-weight:500}
+.ecoute-now .target2{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.2}
+.ecoute-now .ph2{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.ecoute-now.idle{color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:34px;height:34px;border:1.5px solid var(--rule);border-radius:50%;
+  font-size:19px;color:var(--ink);display:grid;place-items:center;padding:0}
+.stepper .val{font-family:var(--mono);font-size:15px;min-width:30px;text-align:center}
+.playing{border-color:var(--stamp)!important;color:var(--stamp)!important}
 .big-ticket .fr{font-size:22px;line-height:1.35}
 .big-ticket .body{padding:20px 18px 24px}
 .hidden-body{display:none}
@@ -395,7 +412,7 @@ main{padding:14px var(--pad) 20px;max-width:640px;margin:0 auto}
 
 nav{
   position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
-  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);
   padding-bottom:env(safe-area-inset-bottom)
 }
 nav button{padding:11px 4px 12px;font-family:var(--display);font-size:12px;
@@ -436,6 +453,7 @@ nav .ic{display:block;font-size:17px;margin-bottom:2px}
 
   <section class="view" id="v-revise"></section>
   <section class="view" id="v-test"></section>
+  <section class="view" id="v-ecoute"></section>
 
   <section class="view" id="v-reglages">
     <div class="row">
@@ -479,6 +497,7 @@ nav .ic{display:block;font-size:17px;margin-bottom:2px}
   <button id="n-guide"  aria-current="true"><span class="ic">☰</span>Guide</button>
   <button id="n-revise"><span class="ic">◈</span>Réviser<span class="badge" id="badge" hidden>0</span></button>
   <button id="n-test"><span class="ic">◎</span>Test</button>
+  <button id="n-ecoute"><span class="ic">♪</span>Écoute</button>
   <button id="n-reglages"><span class="ic">⚙</span>Réglages</button>
 </nav>
 
@@ -500,6 +519,8 @@ const CLE_META = "escale.meta";
 let META = JSON.parse(DB.get(CLE_META) || '{"langue":"es","dir":"fr","tts":true}');
 if(!(META.langue in LANGUES)) META.langue = Object.keys(LANGUES)[0];
 META.dir ||= "fr"; META.tts ??= true;
+META.rep = (typeof META.rep === "number") ? META.rep : 2;      // répétitions par phrase (écoute)
+META.gap = (typeof META.gap === "number") ? META.gap : 3000;   // délai entre répétitions, ms
 const saveMeta = () => DB.set(CLE_META, JSON.stringify(META));
 
 /* Progression + favoris : PROPRES À CHAQUE LANGUE. Clé escale.<langue>. */
@@ -507,7 +528,7 @@ const cleLangue = lg => "escale." + lg;
 let S;
 function chargerLangue(lg){
   S = JSON.parse(DB.get(cleLangue(lg)) || '{"prog":{},"favs":[]}');
-  S.prog ||= {}; S.favs ||= [];
+  S.prog ||= {}; S.favs ||= []; S.maitrise ||= [];
 }
 const save = () => DB.set(cleLangue(META.langue), JSON.stringify(S));
 chargerLangue(META.langue);
@@ -517,6 +538,7 @@ const LG   = () => LANGUES[META.langue];
 const mot  = it => it.tr[META.langue].m;                 // texte en langue cible
 const phon = it => it.tr[META.langue].ph;                // phonétique
 const src  = it => it.tr[META.langue].fr || it.fr;       // français (avec override éventuel)
+const estMaitrise = id => S.maitrise.includes(id);       // maîtrise MANUELLE, propre à la langue
 
 const JOUR = 864e5;
 const fiche = id => S.prog[id] || (S.prog[id] = { box:1, due:0, ok:0, ko:0 });
@@ -552,8 +574,9 @@ function dire(txt){
 /* ── Rendu d'un billet ─────────────────────────────────────────────── */
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function billet(it){
-  const f = fiche(it.id), fav = S.favs.includes(it.id);
-  return `<article class="ticket" data-id="${it.id}">
+  const f = fiche(it.id), fav = S.favs.includes(it.id), m = estMaitrise(it.id);
+  return `<article class="ticket ${m ? "maitrisee" : ""}" data-id="${it.id}">
+    <button class="done" aria-pressed="${m}" aria-label="Marquer comme maîtrisée">${m?"☑":"☐"}</button>
     <button class="star" aria-pressed="${fav}" aria-label="Mettre en favori">${fav?"★":"☆"}</button>
     <div class="stub"><div class="fr">${esc(src(it))}</div></div>
     <div class="perf"></div>
@@ -685,11 +708,13 @@ function majEntete(){
   const pl = document.getElementById("progLang"); if(pl) pl.textContent = LG().cible;
 }
 function aller(vue){
+  if(lecture.on && vue !== "ecoute") arreterEcoute();   // ne pas parler hors de la vue Écoute
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + vue));
   document.querySelectorAll("nav button").forEach(b =>
     b.setAttribute("aria-current", b.id === "n-" + vue));
   if(vue === "revise") rendreRevision();
   if(vue === "test") rendreTest();
+  if(vue === "ecoute") rendreEcoute();
   if(vue === "reglages") rendreReglages();
   majEntete();
 }
@@ -697,10 +722,11 @@ function aller(vue){
 /* ── Changement de langue ──────────────────────────────────────────── */
 function changerLangue(lg){
   if(!(lg in LANGUES) || lg === META.langue) return;
+  arreterEcoute();              // stoppe toute lecture en cours avant de changer de langue
   save();                       // sauvegarde la progression de la langue quittée
   META.langue = lg; saveMeta();
   chargerLangue(lg);            // charge la progression de la nouvelle langue
-  carte = null; quiz = null; devoile = false;
+  carte = null; quiz = null; devoile = false; lecture.item = null;
   chargerVoix();
   majLibelles(); rendreChips(); rendreListe();
   const vue = document.querySelector("nav button[aria-current='true']").id.slice(2);
@@ -724,6 +750,124 @@ function rendreReglages(){
   majLibelles(); majEntete();
 }
 
+/* ── Vue Écoute (lecture audio mains libres) ───────────────────────── */
+let lecture = { on:false, item:null, wake:null };
+
+const nonMaitrisees = () => ITEMS.filter(i => !estMaitrise(i.id));
+
+function rendreEcoute(){
+  const v = document.getElementById("v-ecoute");
+  const pool = nonMaitrisees();
+  if(!pool.length){
+    v.innerHTML = `<div class="empty"><span class="k">Tout est maîtrisé</span>
+      Aucune phrase à lire en ${LG().nom.toLowerCase()}. Décoche des phrases dans le Guide
+      pour les réentendre ici.</div>`;
+    return;
+  }
+  const it = lecture.item;
+  v.innerHTML = `
+    <div class="rev-meta">
+      <div><div class="eyebrow">Écoute mains libres · ${LG().nom}</div>
+        <div class="count">${pool.length} phrase(s) non maîtrisée(s)</div></div>
+    </div>
+    <div class="ecoute-now ${it?"":"idle"} ${lecture.on?"playing":""}" id="ecouteNow">
+      ${it
+        ? `<div class="fr2">${esc(src(it))}</div>
+           <div class="target2">${esc(mot(it))}</div>
+           <div class="ph2">${esc(phon(it))}</div>`
+        : `<div class="fr2">Prêt à écouter</div>
+           <div class="ph2">Pose le téléphone sur son support, écran allumé.</div>`}
+    </div>
+    <div class="row">
+      <div><strong>Répétitions</strong><p>Nombre de fois par phrase.</p></div>
+      <div class="stepper">
+        <button data-step="rep" data-d="-1" aria-label="Moins">–</button>
+        <span class="val" id="valRep">${META.rep}</span>
+        <button data-step="rep" data-d="1" aria-label="Plus">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <div><strong>Délai entre répétitions</strong><p>Pause avant de répéter.</p></div>
+      <div class="stepper">
+        <button data-step="gap" data-d="-1" aria-label="Moins">–</button>
+        <span class="val" id="valGap">${(META.gap/1000)} s</span>
+        <button data-step="gap" data-d="1" aria-label="Plus">+</button>
+      </div>
+    </div>
+    <button class="primary" id="ecToggle">${lecture.on ? "Arrêter" : "Démarrer l'écoute"}</button>
+    <p class="note" style="margin-top:14px">
+      La lecture n'a lieu que <strong>app ouverte, écran allumé</strong> (l'app tente de garder
+      l'écran actif). Écran éteint ou app en arrière-plan, Android coupe la voix : c'est une
+      limite du navigateur, pas un réglage.
+    </p>`;
+}
+
+function afficherEcoute(it){
+  const now = document.getElementById("ecouteNow");
+  if(!now) return;
+  now.classList.remove("idle");
+  now.innerHTML = `<div class="fr2">${esc(src(it))}</div>
+    <div class="target2">${esc(mot(it))}</div>
+    <div class="ph2">${esc(phon(it))}</div>`;
+}
+
+// Prononce un texte et résout la promesse à la fin (ou en cas d'erreur).
+function parler(txt, bcp47, useVoix){
+  return new Promise(res => {
+    if(!("speechSynthesis" in window)){ res(); return; }
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang = bcp47; if(useVoix && voix) u.voice = voix; u.rate = .9;
+    u.onend = res; u.onerror = res;
+    try { speechSynthesis.speak(u); } catch(e){ res(); }
+  });
+}
+const attendre = ms => new Promise(r => setTimeout(r, ms));
+
+async function boucleEcoute(){
+  while(lecture.on){
+    const pool = nonMaitrisees();
+    if(!pool.length){ arreterEcoute(); rendreEcoute(); return; }
+    const it = pool[Math.floor(Math.random() * pool.length)];
+    lecture.item = it; afficherEcoute(it);
+    for(let r = 0; r < META.rep && lecture.on; r++){
+      await parler(src(it), "fr-FR", false);           // français
+      if(!lecture.on) break;
+      await attendre(600);                              // courte pause français → cible
+      if(!lecture.on) break;
+      await parler(mot(it), LG().bcp47, true);          // langue cible
+      if(r < META.rep - 1 && lecture.on) await attendre(META.gap);  // délai avant répétition
+    }
+    if(lecture.on) await attendre(800);                 // pause avant la phrase suivante
+  }
+}
+
+function demarrerEcoute(){
+  if(lecture.on || !nonMaitrisees().length) return;
+  lecture.on = true;
+  if("wakeLock" in navigator){
+    navigator.wakeLock.request("screen").then(w => { lecture.wake = w; }).catch(() => {});
+  }
+  const now = document.getElementById("ecouteNow"); if(now) now.classList.add("playing");
+  const b = document.getElementById("ecToggle"); if(b) b.textContent = "Arrêter";
+  boucleEcoute();
+}
+
+function arreterEcoute(){
+  lecture.on = false;
+  if("speechSynthesis" in window) speechSynthesis.cancel();
+  if(lecture.wake){ try { lecture.wake.release(); } catch(e){} lecture.wake = null; }
+  const now = document.getElementById("ecouteNow"); if(now) now.classList.remove("playing");
+  const b = document.getElementById("ecToggle"); if(b) b.textContent = "Démarrer l'écoute";
+}
+
+// L'écran peut relâcher le verrou d'éveil en repassant au premier plan : on le reprend.
+document.addEventListener("visibilitychange", () => {
+  if(lecture.on && document.visibilityState === "visible"
+     && "wakeLock" in navigator && !lecture.wake){
+    navigator.wakeLock.request("screen").then(w => { lecture.wake = w; }).catch(() => {});
+  }
+});
+
 /* ── Événements (délégation unique) ────────────────────────────────── */
 document.addEventListener("click", e => {
   const t = e.target;
@@ -738,6 +882,17 @@ document.addEventListener("click", e => {
 
   const chip = t.closest(".chip");
   if(chip){ catActive = chip.dataset.cat; rendreChips(); rendreListe(); return; }
+
+  const done = t.closest(".done");
+  if(done){
+    const art = done.closest(".ticket"), id = art.dataset.id;
+    const k = S.maitrise.indexOf(id);
+    k < 0 ? S.maitrise.push(id) : S.maitrise.splice(k, 1);
+    save();
+    art.classList.toggle("maitrisee", k < 0);
+    done.setAttribute("aria-pressed", k < 0); done.textContent = k < 0 ? "☑" : "☐";
+    return;
+  }
 
   const star = t.closest(".star");
   if(star){
@@ -773,13 +928,27 @@ document.addEventListener("click", e => {
     return;
   }
 
+  const step = t.closest(".stepper button");
+  if(step){
+    const d = +step.dataset.d;
+    if(step.dataset.step === "rep"){
+      META.rep = Math.max(1, Math.min(9, META.rep + d));
+      document.getElementById("valRep").textContent = META.rep;
+    } else {
+      META.gap = Math.max(0, Math.min(10000, META.gap + d * 1000));
+      document.getElementById("valGap").textContent = (META.gap/1000) + " s";
+    }
+    saveMeta(); return;
+  }
+  if(t.id === "ecToggle"){ lecture.on ? arreterEcoute() : demarrerEcoute(); return; }
+
   if(t.id === "tDir"){ META.dir = META.dir === "fr" ? "cible" : "fr"; saveMeta();
     majLibelles(); carte = null; majEntete(); return; }
   if(t.id === "tTts"){ META.tts = !META.tts; saveMeta();
     t.setAttribute("aria-pressed", META.tts); t.textContent = META.tts ? "Activée" : "Coupée"; return; }
   if(t.id === "tReset"){
-    if(confirm("Effacer la progression et les favoris de " + LG().nom + " ? Cette action est définitive.")){
-      S = { prog:{}, favs:[] }; save();
+    if(confirm("Effacer la progression, les favoris et les phrases maîtrisées de " + LG().nom + " ? Cette action est définitive.")){
+      S = { prog:{}, favs:[], maitrise:[] }; save();
       rendreChips(); rendreListe(); majEntete(); alert("Progression " + LG().nom + " effacée.");
     }
     return;
