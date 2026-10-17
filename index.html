@@ -1,1107 +1,214 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Escale — langues de voyage</title>
-<meta name="theme-color" content="#12161A">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-</head>
-<body>
+# Escale
 
-<script>
-/* ══════════════════════════════════════════════════════════════════════
-   CONTENU — organisé pour le multi-langue.
+Guide de phrases + révision espacée + test + écoute audio, en PWA installable,
+**entièrement hors-ligne**. 152 phrases sur 10 catégories (voyage, comptabilité,
+se présenter), en français, traduites en **espagnol et anglais**. On bascule de langue dans
+l'application, chaque langue garde sa **propre progression**, et on peut marquer
+les phrases **maîtrisées** (coche verte) pour les écarter de la révision audio.
 
-   • ORIGINE   : langue source, commune à tout le corpus (français).
-   • LANGUES   : une entrée par langue cible. Ajouter une langue = ajouter
-                 une entrée ici + une clé dans "tr" de chaque item.
-   • CATS      : catégories, communes à toutes les langues.
-   • ITEMS     : phrases FRANÇAISES partagées. Chaque item porte ses
-                 traductions dans "tr", indexées par le code de langue :
-                   tr: { es:{ m:"…", ph:"…" }, en:{ m:"…", ph:"…" } }
-                 m  = mot/phrase dans la langue cible
-                 ph = prononciation approchée pour un francophone,
-                      SYLLABE ACCENTUÉE en majuscules.
-                 Champ optionnel  fr:"…"  dans une entrée de "tr" : remplace
-                 le français par défaut UNIQUEMENT pour cette langue. Sert aux
-                 rares phrases dont le texte français nomme la langue cible.
-   ══════════════════════════════════════════════════════════════════════ */
+```
+index.html               application complète (contenu + interface + logique)
+manifest.webmanifest     métadonnées d'installation
+sw.js                    service worker (cache hors-ligne)
+icon-192.png             icônes
+icon-512.png
+icon-maskable-512.png
+```
 
-const ORIGINE = "FR";
+---
 
+## Comment ça marche, en une phrase
+
+Cette app **ne s'installe pas depuis un magasin**. Ses fichiers sont hébergés sur
+**GitHub**, publiés automatiquement par **Netlify**, ce qui produit une adresse
+(URL) ; on ouvre cette adresse dans Chrome **sur le téléphone**, et Chrome
+propose de l'installer comme une application.
+
+> **Pourquoi un hébergeur ?** L'installation et le mode hors-ligne exigent une
+> adresse **https://**. Un fichier ouvert directement depuis le téléphone
+> (`file://…`) s'affiche mais **ne s'installe pas**. L'hébergement est donc
+> obligatoire, mais il est gratuit.
+
+---
+
+## Premier déploiement (déjà fait)
+
+L'app est hébergée selon cette chaîne :
+
+1. Les fichiers sont dans le **dépôt GitHub** :
+   **https://github.com/hervel38/escale**
+2. **Netlify** est relié à ce dépôt et publie automatiquement à chaque
+   modification : **https://escale2.netlify.app/**
+3. L'app est **installée sur le téléphone Android** depuis cette URL.
+
+Cette mise en place est faite une seule fois. Après ça, seules les mises à jour
+de contenu demandent une action (voir ci-dessous).
+
+---
+
+## Mettre à jour l'app
+
+Quand un fichier change (nouvelle version d'`index.html`, de `sw.js`, etc.) :
+
+1. Aller sur **https://github.com/hervel38/escale** (connecté avec le compte
+   **hervel38**, pas celui du boulot).
+2. Cliquer sur le **fichier à remplacer** (p. ex. `index.html`).
+3. Cliquer l'icône **crayon** (✏️, « Edit this file ») en haut à droite.
+4. Dans la zone de texte : **Ctrl+A** (tout sélectionner), puis **Suppr** (tout
+   effacer).
+5. Ouvrir le **nouveau fichier** sur le PC avec le Bloc-notes, **Ctrl+A**,
+   **Ctrl+C**, puis **Ctrl+V** dans la zone GitHub.
+6. Bouton vert **Commit changes…** → **Commit changes**.
+7. Répéter pour chaque fichier modifié (en général `index.html` + `sw.js`).
+
+**Netlify republie tout seul** en ~1 minute, sans rien faire sur Netlify.
+
+Pour vérifier sur ordinateur : ouvrir **https://escale2.netlify.app/** avec
+**Ctrl+Maj+R** (rafraîchissement forcé, pour éviter le cache navigateur).
+
+Sur le téléphone : ouvrir l'app une fois **avec du réseau**. Si la mise à jour
+n'apparaît pas, fermer complètement l'app puis la rouvrir — le nouveau cache
+prendra le relais.
+
+> **Rappel important :** après toute modification d'`index.html`, il faut aussi
+> mettre à jour `sw.js` dont la constante `CACHE` doit être **incrémentée**
+> (p. ex. `escale-v5` → `escale-v6`). Sans cela, l'ancienne version continue
+> d'être servie depuis le cache du téléphone.
+
+---
+
+## Installer sur un nouveau téléphone Android
+
+1. **Sur le téléphone**, ouvrir **Chrome** (WiFi ou 4G/5G, peu importe — l'app
+   pèse environ 70 Ko).
+2. Aller à **https://escale2.netlify.app/**
+3. Menu **⋮** (en haut à droite) → **Installer l'application** (ou « Ajouter à
+   l'écran d'accueil »).
+4. Confirmer. Une **icône Escale** apparaît comme n'importe quelle app.
+5. La lancer une fois **avec du réseau** pour constituer le cache hors-ligne.
+   Après ça, elle fonctionne **sans connexion**, y compris à l'étranger.
+
+> **Si l'option « Installer » n'apparaît pas :** vérifier que l'adresse commence
+> bien par **https://** et non `http://` ou un chemin de fichier.
+
+
+---
+
+## Voix hors-ligne (optionnel)
+
+La prononciation utilise le moteur de synthèse vocale d'Android. Pour qu'elle
+fonctionne **sans réseau**, le pack vocal de la langue visée doit être présent
+sur l'appareil — **espagnol et/ou anglais**, selon les langues utilisées :
+
+**Paramètres → Système → Langues et saisie → Sortie de synthèse vocale →
+Moteur (Google) → Installer les données vocales → Espagnol** (et **Anglais**)
+
+L'écran **Réglages** de l'app indique, pour la langue active, quelle voix a été
+détectée ou signale son absence. Chaque pack est nettement plus lourd que l'app
+elle-même (quelques dizaines de Mo) et sert à tout le système, pas seulement à
+Escale. Ils sont facultatifs : sans eux, l'app fonctionne, seule la lecture à
+voix haute est indisponible hors ligne.
+
+---
+
+## Basculer de langue
+
+Dans l'app, deux façons de changer de langue : la **pastille** en haut à droite
+(elle fait défiler les langues), ou le segment **« Langue cible »** dans
+**Réglages**. Chaque langue a sa propre progression, indépendante des autres.
+
+## Marquer les phrases maîtrisées
+
+Dans le **Guide**, chaque phrase a une **coche ☐ à gauche**. On la touche pour la
+marquer maîtrisée : elle passe **en vert**, et sort de la lecture audio (ci-
+dessous). C'est manuel, réversible, et propre à chaque langue. Sans effet sur la
+révision espacée, qui garde sa propre notion d'« acquis ».
+
+## Écoute mains libres
+
+L'onglet **♪ Écoute** lit les phrases **non maîtrisées** de la langue active, au
+hasard : le français puis la traduction. Deux réglages (boutons – / +) : le
+**nombre de répétitions** par phrase et le **délai entre répétitions** (3 s par
+défaut). Pensé pour l'écoute passive, téléphone sur support.
+
+> **À savoir :** la lecture ne fonctionne qu'**app ouverte, écran allumé**
+> (l'app maintient l'écran actif pendant la lecture). Écran éteint ou app en
+> arrière-plan, le navigateur mobile coupe la voix — c'est une limite du système,
+> pas un réglage.
+
+## Ajouter une langue ou enrichir le corpus
+
+Tout le contenu tient dans le premier `<script>` de `index.html`, entre les
+bandeaux `CONTENU` et `FIN DU CONTENU`. Rien d'autre n'est à toucher.
+
+**Ajouter une langue** (par ex. l'italien) = deux gestes : une entrée dans
+`LANGUES`, puis une clé `it` dans le `tr` de **chaque** phrase.
+
+```js
 const LANGUES = {
-  es: {
-    nom: "Espagnol", cible: "ES", bcp47: "es-ES",
-    guide: `La syllabe en <strong>MAJUSCULES</strong> porte l'accent tonique — c'est
-      ce qui rend une phrase compréhensible, plus encore que les sons eux-mêmes.
-      <code>kh</code> = jota raclée · <code>gn</code> = ñ · <code>y</code> = ll.
-      Les <code>s</code> transcrits recouvrent aussi <code>z</code>, <code>ce</code>
-      et <code>ci</code> : en Castille ils se disent « th », ailleurs « s ». Les
-      deux passent partout.`
-  },
-  en: {
-    nom: "Anglais", cible: "EN", bcp47: "en-GB",
-    guide: `La syllabe en <strong>MAJUSCULES</strong> porte l'accent tonique.
-      <code>dz</code> ≈ « th » sonore (<em>the, this</em>) · <code>ss</code> ≈ « th »
-      sourd (<em>thank, three</em>) : deux sons absents du français, approximés ici.
-      Le <code>h</code> se prononce en expirant, contrairement au français.
-      <code>aï</code> = « aïe » · <code>ou</code> = « ou » long. Ces transcriptions
-      sont volontairement grossières : elles visent à se faire comprendre, pas la
-      justesse phonétique.`
-  }
+  es: { nom:"Espagnol", cible:"ES", bcp47:"es-ES", guide:"…" },
+  en: { nom:"Anglais",  cible:"EN", bcp47:"en-GB", guide:"…" },
+  it: { nom:"Italien",  cible:"IT", bcp47:"it-IT", guide:"…" }   // ← ajout
 };
-
-const CATS = [
-  { id:"base",   nom:"Bases" },
-  { id:"route",  nom:"Se déplacer" },
-  { id:"hotel",  nom:"Hôtel" },
-  { id:"table",  nom:"Restaurant" },
-  { id:"achat",  nom:"Achats & argent" },
-  { id:"orient", nom:"S'orienter" },
-  { id:"sante",  nom:"Santé & urgences" },
-  { id:"debrou", nom:"Débrouille" },
-  { id:"compta", nom:"Comptabilité" },
-  { id:"presenter", nom:"Se présenter" }
-];
 
 const ITEMS = [
-  // ── Bases ──────────────────────────────────────────────────────────
-  { id:"b1",  cat:"base", fr:"Bonjour",
-    tr:{ es:{m:"Buenos días", ph:"BOUEnoss DIass"}, en:{m:"Good morning", ph:"goud MOR-ninng"} } },
-  { id:"b2",  cat:"base", fr:"Bonsoir",
-    tr:{ es:{m:"Buenas tardes", ph:"BOUEnass TARdess"}, en:{m:"Good evening", ph:"goud IV-ninng"} } },
-  { id:"b3",  cat:"base", fr:"Merci beaucoup",
-    tr:{ es:{m:"Muchas gracias", ph:"MOUtchass GRAsiass"}, en:{m:"Thank you very much", ph:"SÈNK-you VÈ-ri motch"} } },
-  { id:"b4",  cat:"base", fr:"S'il vous plaît",
-    tr:{ es:{m:"Por favor", ph:"por faVOR"}, en:{m:"Please", ph:"pliiz"} } },
-  { id:"b5",  cat:"base", fr:"Excusez-moi",
-    tr:{ es:{m:"Disculpe", ph:"disKOULpé"}, en:{m:"Excuse me", ph:"iks-KIOUZ mi"} } },
-  { id:"b6",  cat:"base", fr:"Oui / Non",
-    tr:{ es:{m:"Sí / No", ph:"si / no"}, en:{m:"Yes / No", ph:"yèss / no"} } },
-  { id:"b7",  cat:"base", fr:"Je ne parle pas espagnol",
-    tr:{ es:{m:"No hablo español", ph:"no Ablo espaGNOL"},
-         en:{m:"I don't speak English", ph:"aï dont spiik INN-glich", fr:"Je ne parle pas anglais"} } },
-  { id:"b8",  cat:"base", fr:"Parlez-vous français ?",
-    tr:{ es:{m:"¿Habla usted francés?", ph:"Abla ousTED franSSESS"}, en:{m:"Do you speak French?", ph:"dou you spiik frèntch"} } },
-  { id:"b9",  cat:"base", fr:"Je ne comprends pas",
-    tr:{ es:{m:"No entiendo", ph:"no enTIENdo"}, en:{m:"I don't understand", ph:"aï dont eun-deur-STANND"} } },
-  { id:"b10", cat:"base", fr:"Pouvez-vous répéter plus lentement ?",
-    tr:{ es:{m:"¿Puede repetirlo más despacio?", ph:"POUÉdé répéTIRlo mass desPAsio"}, en:{m:"Could you repeat that more slowly?", ph:"koud you ri-PIIT dzatt mor SLO-li"} } },
-  { id:"b11", cat:"base", fr:"Comment ça se dit en espagnol ?",
-    tr:{ es:{m:"¿Cómo se dice en español?", ph:"KOmo sé DIsé en espaGNOL"},
-         en:{m:"How do you say this in English?", ph:"haou dou you SÉ dziss inn INN-glich", fr:"Comment ça se dit en anglais ?"} } },
-  { id:"b12", cat:"base", fr:"Au revoir",
-    tr:{ es:{m:"Hasta luego", ph:"Asta LOUÉgo"}, en:{m:"Goodbye", ph:"goud-BAÏ"} } },
-
-  // ── Se déplacer ────────────────────────────────────────────────────
-  { id:"r1",  cat:"route", fr:"Un billet pour Madrid, s'il vous plaît",
-    tr:{ es:{m:"Un billete para Madrid, por favor", ph:"oun biYÉté PAra maDRID por faVOR"}, en:{m:"A ticket to Madrid, please", ph:"e TI-kit tou ma-DRID pliiz"} } },
-  { id:"r2",  cat:"route", fr:"Aller simple / aller-retour",
-    tr:{ es:{m:"Ida / ida y vuelta", ph:"Ida / Ida i VOUELta"}, en:{m:"One-way / return", ph:"ouann-OUÉ / ri-TEURN"} } },
-  { id:"r3",  cat:"route", fr:"À quelle heure part le train ?",
-    tr:{ es:{m:"¿A qué hora sale el tren?", ph:"a ké Ora SAlé el tren"}, en:{m:"What time does the train leave?", ph:"ouott taïm deuz dze tréïn liiv"} } },
-  { id:"r4",  cat:"route", fr:"De quel quai ?",
-    tr:{ es:{m:"¿De qué andén?", ph:"dé ké anDÈNE"}, en:{m:"From which platform?", ph:"from ouitch PLATT-form"} } },
-  { id:"r5",  cat:"route", fr:"Ce bus va-t-il au centre-ville ?",
-    tr:{ es:{m:"¿Este autobús va al centro?", ph:"Esté aoutoBOUSS va al SSENtro"}, en:{m:"Does this bus go to the city centre?", ph:"deuz dziss beuss go tou dze SI-ti SÈN-teur"} } },
-  { id:"r6",  cat:"route", fr:"Où est l'arrêt de bus ?",
-    tr:{ es:{m:"¿Dónde está la parada del autobús?", ph:"DONNdé esTA la paRAda del aoutoBOUSS"}, en:{m:"Where is the bus stop?", ph:"ouèr iz dze beuss stop"} } },
-  { id:"r7",  cat:"route", fr:"Je voudrais un taxi",
-    tr:{ es:{m:"Quisiera un taxi", ph:"kiSIÉra oun TAKsi"}, en:{m:"I'd like a taxi", ph:"aïd laïk e TAK-si"} } },
-  { id:"r8",  cat:"route", fr:"Combien coûte la course jusqu'à l'aéroport ?",
-    tr:{ es:{m:"¿Cuánto cuesta hasta el aeropuerto?", ph:"KOUANto KOUESta Asta el aéroPOUERto"}, en:{m:"How much is it to the airport?", ph:"haou motch iz it tou dzi ÈR-port"} } },
-  { id:"r9",  cat:"route", fr:"Arrêtez-vous ici, s'il vous plaît",
-    tr:{ es:{m:"Pare aquí, por favor", ph:"PAré aKI por faVOR"}, en:{m:"Stop here, please", ph:"stop HIeur pliiz"} } },
-  { id:"r10", cat:"route", fr:"Mon vol est annulé",
-    tr:{ es:{m:"Mi vuelo está cancelado", ph:"mi VOUÉlo esTA cansséLAdo"}, en:{m:"My flight is cancelled", ph:"maï flaït iz KANN-seuld"} } },
-  { id:"r11", cat:"route", fr:"Où récupère-t-on les bagages ?",
-    tr:{ es:{m:"¿Dónde se recogen las maletas?", ph:"DONNdé sé réKOkhen lass maLÉtass"}, en:{m:"Where is the baggage claim?", ph:"ouèr iz dze BA-guidj kléïm"} } },
-  { id:"r12", cat:"route", fr:"J'ai raté ma correspondance",
-    tr:{ es:{m:"He perdido la conexión", ph:"é perDIdo la conekSSION"}, en:{m:"I missed my connection", ph:"aï mist maï ke-NÈK-cheun"} } },
-
-  // ── Hôtel ──────────────────────────────────────────────────────────
-  { id:"h1",  cat:"hotel", fr:"J'ai une réservation au nom de…",
-    tr:{ es:{m:"Tengo una reserva a nombre de…", ph:"TÈNEgo Ouna réSSERva a NOMbré dé"}, en:{m:"I have a reservation under…", ph:"aï hav e rè-zeur-VÉ-cheun EUN-deur"} } },
-  { id:"h2",  cat:"hotel", fr:"Avez-vous une chambre libre ?",
-    tr:{ es:{m:"¿Tienen una habitación libre?", ph:"TIÉnen Ouna abitaSSION LIbré"}, en:{m:"Do you have a room available?", ph:"dou you hav e roum e-VÉ-le-beul"} } },
-  { id:"h3",  cat:"hotel", fr:"Pour deux nuits",
-    tr:{ es:{m:"Para dos noches", ph:"PAra doss NOtchess"}, en:{m:"For two nights", ph:"for tou naïts"} } },
-  { id:"h4",  cat:"hotel", fr:"Le petit-déjeuner est-il inclus ?",
-    tr:{ es:{m:"¿El desayuno está incluido?", ph:"el déssaYOUno esTA inclouIdo"}, en:{m:"Is breakfast included?", ph:"iz BRÈK-feust inn-KLOU-did"} } },
-  { id:"h5",  cat:"hotel", fr:"À quelle heure faut-il libérer la chambre ?",
-    tr:{ es:{m:"¿A qué hora hay que dejar la habitación?", ph:"a ké Ora ai ké déKHAR la abitaSSION"}, en:{m:"What time is check-out?", ph:"ouott taïm iz tchèk-AOUT"} } },
-  { id:"h6",  cat:"hotel", fr:"La climatisation ne marche pas",
-    tr:{ es:{m:"El aire acondicionado no funciona", ph:"el Aïré acondissioNAdo no founSIOna"}, en:{m:"The air conditioning isn't working", ph:"dzi èr keun-DI-cheu-ninng I-zeunt OUEUR-kinng"} } },
-  { id:"h7",  cat:"hotel", fr:"Il n'y a pas d'eau chaude",
-    tr:{ es:{m:"No hay agua caliente", ph:"no ai Agoua caLIENté"}, en:{m:"There's no hot water", ph:"dzèrz no hott OUO-teur"} } },
-  { id:"h8",  cat:"hotel", fr:"Quel est le mot de passe du wifi ?",
-    tr:{ es:{m:"¿Cuál es la contraseña del wifi?", ph:"koual ess la contraSÉgna del OUIfi"}, en:{m:"What's the wifi password?", ph:"ouotts dze OUAÏ-faï PASS-oueurd"} } },
-  { id:"h9",  cat:"hotel", fr:"Puis-je laisser mes bagages ici ?",
-    tr:{ es:{m:"¿Puedo dejar las maletas aquí?", ph:"POUÉdo déKHAR lass maLÉtass aKI"}, en:{m:"Can I leave my luggage here?", ph:"kann aï liiv maï LEU-guidj HIeur"} } },
-  { id:"h10", cat:"hotel", fr:"Pouvez-vous appeler un taxi ?",
-    tr:{ es:{m:"¿Puede llamar a un taxi?", ph:"POUÉdé yaMAR a oun TAKsi"}, en:{m:"Could you call a taxi?", ph:"koud you kol e TAK-si"} } },
-
-  // ── Restaurant ─────────────────────────────────────────────────────
-  { id:"t1",  cat:"table", fr:"Une table pour deux",
-    tr:{ es:{m:"Una mesa para dos", ph:"Ouna MÉssa PAra doss"}, en:{m:"A table for two", ph:"e TÉÏ-beul for tou"} } },
-  { id:"t2",  cat:"table", fr:"La carte, s'il vous plaît",
-    tr:{ es:{m:"La carta, por favor", ph:"la CARta por faVOR"}, en:{m:"The menu, please", ph:"dze MÈ-niou pliiz"} } },
-  { id:"t3",  cat:"table", fr:"Quelle est la spécialité de la maison ?",
-    tr:{ es:{m:"¿Cuál es la especialidad de la casa?", ph:"koual ess la espéssialiDAD dé la CAssa"}, en:{m:"What's the house special?", ph:"ouotts dze haouss SPÈ-cheul"} } },
-  { id:"t4",  cat:"table", fr:"Je vais prendre ceci",
-    tr:{ es:{m:"Voy a tomar esto", ph:"boï a toMAR Esto"}, en:{m:"I'll have this", ph:"aïl hav dziss"} } },
-  { id:"t5",  cat:"table", fr:"Sans viande, je suis végétarien",
-    tr:{ es:{m:"Sin carne, soy vegetariano", ph:"sinn CARné soï békhétaRIAno"}, en:{m:"No meat, I'm vegetarian", ph:"no miit aïm vè-dji-TÈ-rieunn"} } },
-  { id:"t6",  cat:"table", fr:"Je suis allergique aux fruits de mer",
-    tr:{ es:{m:"Soy alérgico al marisco", ph:"soï aLERkhico al maRISSco"}, en:{m:"I'm allergic to seafood", ph:"aïm e-LEUR-djik tou SII-foud"} } },
-  { id:"t7",  cat:"table", fr:"Une carafe d'eau",
-    tr:{ es:{m:"Una jarra de agua", ph:"Ouna KHArra dé Agoua"}, en:{m:"A jug of water", ph:"e djeug ov OUO-teur"} } },
-  { id:"t8",  cat:"table", fr:"L'addition, s'il vous plaît",
-    tr:{ es:{m:"La cuenta, por favor", ph:"la KOUENta por faVOR"}, en:{m:"The bill, please", ph:"dze bil pliiz"} } },
-  { id:"t9",  cat:"table", fr:"C'était très bon",
-    tr:{ es:{m:"Estaba muy bueno", ph:"esTAba mouï BOUÉno"}, en:{m:"That was very good", ph:"dzatt ouoz VÈ-ri goud"} } },
-  { id:"t10", cat:"table", fr:"Est-ce que ça pique ?",
-    tr:{ es:{m:"¿Pica mucho?", ph:"PIca MOUtcho"}, en:{m:"Is it spicy?", ph:"iz it SPAÏ-si"} } },
-  { id:"t11", cat:"table", fr:"Un café allongé",
-    tr:{ es:{m:"Un café americano", ph:"oun caFÉ américAno"}, en:{m:"An Americano", ph:"eun e-mè-ri-KA-no"} } },
-  { id:"t12", cat:"table", fr:"Peut-on manger en terrasse ?",
-    tr:{ es:{m:"¿Se puede comer en la terraza?", ph:"sé POUÉdé coMER en la téRAssa"}, en:{m:"Can we eat outside?", ph:"kann oui iit aout-SAÏD"} } },
-
-  // ── Achats & argent ────────────────────────────────────────────────
-  { id:"a1",  cat:"achat", fr:"Combien ça coûte ?",
-    tr:{ es:{m:"¿Cuánto cuesta?", ph:"KOUANto KOUESta"}, en:{m:"How much is it?", ph:"haou motch iz it"} } },
-  { id:"a2",  cat:"achat", fr:"C'est trop cher",
-    tr:{ es:{m:"Es demasiado caro", ph:"ess démaSIAdo CAro"}, en:{m:"It's too expensive", ph:"itts tou iks-PÈN-siv"} } },
-  { id:"a3",  cat:"achat", fr:"Avez-vous moins cher ?",
-    tr:{ es:{m:"¿Tiene algo más barato?", ph:"TIÉné Algo mass baRAto"}, en:{m:"Do you have anything cheaper?", ph:"dou you hav È-ni-sinng TCHII-peur"} } },
-  { id:"a4",  cat:"achat", fr:"Je regarde seulement, merci",
-    tr:{ es:{m:"Solo estoy mirando, gracias", ph:"SOlo esTOÏ miRANdo GRAsiass"}, en:{m:"I'm just looking, thanks", ph:"aïm djeust LOU-kinng sènks"} } },
-  { id:"a5",  cat:"achat", fr:"Je le prends",
-    tr:{ es:{m:"Me lo llevo", ph:"mé lo YÉvo"}, en:{m:"I'll take it", ph:"aïl téïk it"} } },
-  { id:"a6",  cat:"achat", fr:"Où y a-t-il un distributeur ?",
-    tr:{ es:{m:"¿Dónde hay un cajero automático?", ph:"DONNdé ai oun caKHÉro aoutoMAtico"}, en:{m:"Where's a cash machine?", ph:"ouèrz e kach me-CHIIN"} } },
-  { id:"a7",  cat:"achat", fr:"Acceptez-vous la carte ?",
-    tr:{ es:{m:"¿Aceptan tarjeta?", ph:"aSSEPtan tarKHÉta"}, en:{m:"Do you take card?", ph:"dou you téïk kard"} } },
-  { id:"a8",  cat:"achat", fr:"Un reçu, s'il vous plaît",
-    tr:{ es:{m:"Un recibo, por favor", ph:"oun réSSIbo por faVOR"}, en:{m:"A receipt, please", ph:"e ri-SIIT pliiz"} } },
-  { id:"a9",  cat:"achat", fr:"Avez-vous ma taille ?",
-    tr:{ es:{m:"¿Tiene mi talla?", ph:"TIÉné mi TAya"}, en:{m:"Do you have my size?", ph:"dou you hav maï saïz"} } },
-  { id:"a10", cat:"achat", fr:"Je peux l'essayer ?",
-    tr:{ es:{m:"¿Puedo probármelo?", ph:"POUÉdo proBARmélo"}, en:{m:"Can I try it on?", ph:"kann aï traï it onn"} } },
-
-  // ── S'orienter ─────────────────────────────────────────────────────
-  { id:"o1",  cat:"orient", fr:"Où sommes-nous sur le plan ?",
-    tr:{ es:{m:"¿Dónde estamos en el mapa?", ph:"DONNdé esTAmoss en el MApa"}, en:{m:"Where are we on the map?", ph:"ouèr ar oui onn dze map"} } },
-  { id:"o2",  cat:"orient", fr:"Où sont les toilettes ?",
-    tr:{ es:{m:"¿Dónde está el baño?", ph:"DONNdé esTA el BAgno"}, en:{m:"Where's the toilet?", ph:"ouèrz dze TOÏ-lit"} } },
-  { id:"o3",  cat:"orient", fr:"Est-ce loin d'ici ?",
-    tr:{ es:{m:"¿Está lejos de aquí?", ph:"esTA LÉkhoss dé aKI"}, en:{m:"Is it far from here?", ph:"iz it far from HIeur"} } },
-  { id:"o4",  cat:"orient", fr:"C'est à combien de minutes à pied ?",
-    tr:{ es:{m:"¿Cuántos minutos se tarda andando?", ph:"KOUANtoss miNOUtoss sé TARda anDANdo"}, en:{m:"How many minutes on foot?", ph:"haou MÈ-ni MI-nits onn fout"} } },
-  { id:"o5",  cat:"orient", fr:"Tout droit / à gauche / à droite",
-    tr:{ es:{m:"Todo recto / a la izquierda / a la derecha", ph:"TOdo RECto / a la isKIERda / a la déRÉtcha"}, en:{m:"Straight ahead / left / right", ph:"stréït e-HÈD / lèft / raït"} } },
-  { id:"o6",  cat:"orient", fr:"Je me suis perdu",
-    tr:{ es:{m:"Me he perdido", ph:"mé é perDIdo"}, en:{m:"I'm lost", ph:"aïm lost"} } },
-  { id:"o7",  cat:"orient", fr:"Pouvez-vous me le montrer sur le plan ?",
-    tr:{ es:{m:"¿Me lo puede señalar en el mapa?", ph:"mé lo POUÉdé ségnaLAR en el MApa"}, en:{m:"Can you show me on the map?", ph:"kann you cho mi onn dze map"} } },
-  { id:"o8",  cat:"orient", fr:"À quelle heure ça ouvre ?",
-    tr:{ es:{m:"¿A qué hora abren?", ph:"a ké Ora Abrenn"}, en:{m:"What time do you open?", ph:"ouott taïm dou you O-peun"} } },
-  { id:"o9",  cat:"orient", fr:"C'est fermé le lundi ?",
-    tr:{ es:{m:"¿Cierran los lunes?", ph:"SIÉrran loss LOUness"}, en:{m:"Are you closed on Mondays?", ph:"ar you klozd onn MEUN-déïz"} } },
-  { id:"o10", cat:"orient", fr:"Y a-t-il une pharmacie près d'ici ?",
-    tr:{ es:{m:"¿Hay una farmacia cerca?", ph:"ai Ouna farMAsia SSERca"}, en:{m:"Is there a pharmacy nearby?", ph:"iz dzèr e FAR-me-si NIeur-baï"} } },
-
-  // ── Santé & urgences ───────────────────────────────────────────────
-  { id:"s1",  cat:"sante", fr:"J'ai besoin d'un médecin",
-    tr:{ es:{m:"Necesito un médico", ph:"néssésSIto oun MÉdico"}, en:{m:"I need a doctor", ph:"aï niid e DOK-teur"} } },
-  { id:"s2",  cat:"sante", fr:"Appelez une ambulance",
-    tr:{ es:{m:"Llame a una ambulancia", ph:"YAmé a Ouna amboulANsia"}, en:{m:"Call an ambulance", ph:"kol eun AM-biou-leunss"} } },
-  { id:"s3",  cat:"sante", fr:"J'ai mal ici",
-    tr:{ es:{m:"Me duele aquí", ph:"mé DOUÉlé aKI"}, en:{m:"It hurts here", ph:"it heurts HIeur"} } },
-  { id:"s4",  cat:"sante", fr:"J'ai de la fièvre",
-    tr:{ es:{m:"Tengo fiebre", ph:"TÈNEgo FIÉbré"}, en:{m:"I have a fever", ph:"aï hav e FII-veur"} } },
-  { id:"s5",  cat:"sante", fr:"Je suis allergique aux antibiotiques",
-    tr:{ es:{m:"Soy alérgico a los antibióticos", ph:"soï aLERkhico a loss antiBIOticoss"}, en:{m:"I'm allergic to antibiotics", ph:"aïm e-LEUR-djik tou an-ti-baï-O-tiks"} } },
-  { id:"s6",  cat:"sante", fr:"Où est l'hôpital le plus proche ?",
-    tr:{ es:{m:"¿Dónde está el hospital más cercano?", ph:"DONNdé esTA el ospiTAL mass sserCAno"}, en:{m:"Where's the nearest hospital?", ph:"ouèrz dze NIeu-rest HOSS-pi-teul"} } },
-  { id:"s7",  cat:"sante", fr:"Pouvez-vous m'aider ?",
-    tr:{ es:{m:"¿Me puede ayudar?", ph:"mé POUÉdé ayouDAR"}, en:{m:"Can you help me?", ph:"kann you hèlp mi"} } },
-  { id:"s8",  cat:"sante", fr:"On m'a volé mon portefeuille",
-    tr:{ es:{m:"Me han robado la cartera", ph:"mé ann roBAdo la carTÉra"}, en:{m:"My wallet was stolen", ph:"maï OUO-lit ouoz STO-leun"} } },
-  { id:"s9",  cat:"sante", fr:"Je dois appeler la police",
-    tr:{ es:{m:"Tengo que llamar a la policía", ph:"TÈNEgo ké yaMAR a la poliSSIa"}, en:{m:"I need to call the police", ph:"aï niid tou kol dze pe-LIISS"} } },
-  { id:"s10", cat:"sante", fr:"J'ai perdu mon passeport",
-    tr:{ es:{m:"He perdido el pasaporte", ph:"é perDIdo el passaPORté"}, en:{m:"I've lost my passport", ph:"aïv lost maï PASS-port"} } },
-  { id:"s11", cat:"sante", fr:"Voici ma carte européenne d'assurance maladie",
-    tr:{ es:{m:"Esta es mi tarjeta sanitaria europea", ph:"Esta ess mi tarKHÉta saniTAria éouroPÉa"}, en:{m:"Here's my European health card", ph:"HIeurz maï you-re-PII-eun hèls kard"} } },
-
-  // ── Débrouille ─────────────────────────────────────────────────────
-  { id:"d1",  cat:"debrou", fr:"Pouvez-vous me l'écrire ?",
-    tr:{ es:{m:"¿Me lo puede escribir?", ph:"mé lo POUÉdé escriBIR"}, en:{m:"Could you write it down?", ph:"koud you raït it daoun"} } },
-  { id:"d2",  cat:"debrou", fr:"Un instant, s'il vous plaît",
-    tr:{ es:{m:"Un momento, por favor", ph:"oun moMÈNEto por faVOR"}, en:{m:"One moment, please", ph:"ouann MO-meunt pliiz"} } },
-  { id:"d3",  cat:"debrou", fr:"Il y a un problème",
-    tr:{ es:{m:"Hay un problema", ph:"ai oun proBLÉma"}, en:{m:"There's a problem", ph:"dzèrz e PRO-bleum"} } },
-  { id:"d4",  cat:"debrou", fr:"Ce n'est pas ce que j'ai commandé",
-    tr:{ es:{m:"Esto no es lo que he pedido", ph:"Esto no ess lo ké é péDIdo"}, en:{m:"This isn't what I ordered", ph:"dziss I-zeunt ouott aï OR-deurd"} } },
-  { id:"d5",  cat:"debrou", fr:"Puis-je recharger mon téléphone ?",
-    tr:{ es:{m:"¿Puedo cargar el móvil?", ph:"POUÉdo carGAR el MObil"}, en:{m:"Can I charge my phone?", ph:"kann aï tchardj maï foun"} } },
-  { id:"d6",  cat:"debrou", fr:"Y a-t-il du wifi ?",
-    tr:{ es:{m:"¿Hay wifi?", ph:"ai OUIfi"}, en:{m:"Is there wifi?", ph:"iz dzèr OUAÏ-faï"} } },
-  { id:"d7",  cat:"debrou", fr:"Je reviens tout de suite",
-    tr:{ es:{m:"Ahora vuelvo", ph:"aOra BOUELvo"}, en:{m:"I'll be right back", ph:"aïl bi raït bak"} } },
-  { id:"d8",  cat:"debrou", fr:"Non merci, ça va",
-    tr:{ es:{m:"No, gracias, está bien", ph:"no GRAsiass esTA bienn"}, en:{m:"No thanks, I'm fine", ph:"no sènks aïm faïn"} } },
-  { id:"d9",  cat:"debrou", fr:"Laissez-moi tranquille",
-    tr:{ es:{m:"Déjeme en paz", ph:"DÉkhémé en pass"}, en:{m:"Leave me alone", ph:"liiv mi e-LON"} } },
-  { id:"d10", cat:"debrou", fr:"Combien de temps ça prend ?",
-    tr:{ es:{m:"¿Cuánto tiempo tarda?", ph:"KOUANto TIEMpo TARda"}, en:{m:"How long does it take?", ph:"haou lonng deuz it téïk"} } },
-
-  // ── Comptabilité ───────────────────────────────────────────────────
-  { id:"c1",  cat:"compta", fr:"La comptabilité",
-    tr:{ es:{m:"La contabilidad", ph:"la contabiliDAD"}, en:{m:"Accounting", ph:"e-KAOUN-tinng"} } },
-  { id:"c2",  cat:"compta", fr:"Une facture",
-    tr:{ es:{m:"Una factura", ph:"Ouna facTOUra"}, en:{m:"An invoice", ph:"eun IN-voïss"} } },
-  { id:"c3",  cat:"compta", fr:"Un devis",
-    tr:{ es:{m:"Un presupuesto", ph:"oun présouPOUESto"}, en:{m:"A quote", ph:"e kouôte"} } },
-  { id:"c4",  cat:"compta", fr:"La TVA",
-    tr:{ es:{m:"El IVA", ph:"el Iba"}, en:{m:"VAT", ph:"vatt (ou V-A-T)"} } },
-  { id:"c5",  cat:"compta", fr:"Le bilan",
-    tr:{ es:{m:"El balance", ph:"el baLANsé"}, en:{m:"The balance sheet", ph:"dze BA-leunss chiit"} } },
-  { id:"c6",  cat:"compta", fr:"Le compte de résultat",
-    tr:{ es:{m:"La cuenta de resultados", ph:"la KOUENta dé résoulTAdoss"}, en:{m:"The income statement", ph:"dzi IN-keum STÉÏT-meunt"} } },
-  { id:"c7",  cat:"compta", fr:"L'actif",
-    tr:{ es:{m:"El activo", ph:"el acTIbo"}, en:{m:"Assets", ph:"A-sètss"} } },
-  { id:"c8",  cat:"compta", fr:"Le passif",
-    tr:{ es:{m:"El pasivo", ph:"el paSIbo"}, en:{m:"Liabilities", ph:"laï-e-BI-li-tiz"} } },
-  { id:"c9",  cat:"compta", fr:"Débit / Crédit",
-    tr:{ es:{m:"Debe / Haber", ph:"DÉbé / aBER"}, en:{m:"Debit / Credit", ph:"DÈ-bit / KRÈ-dit"} } },
-  { id:"c10", cat:"compta", fr:"Le grand livre",
-    tr:{ es:{m:"El libro mayor", ph:"el LIbro maYOR"}, en:{m:"The general ledger", ph:"dze DJÈ-ne-reul LÈ-djeur"} } },
-  { id:"c11", cat:"compta", fr:"Un amortissement",
-    tr:{ es:{m:"Una amortización", ph:"Ouna amortisaSSION"}, en:{m:"Depreciation", ph:"di-pri-chi-É-cheun"} } },
-  { id:"c12", cat:"compta", fr:"Le chiffre d'affaires",
-    tr:{ es:{m:"La facturación", ph:"la factouraSSION"}, en:{m:"Turnover", ph:"TEUR-no-veur"} } },
-  { id:"c13", cat:"compta", fr:"Le résultat net",
-    tr:{ es:{m:"El beneficio neto", ph:"el bénéFIsio NÉto"}, en:{m:"Net profit", ph:"nètt PRO-fit"} } },
-  { id:"c14", cat:"compta", fr:"L'exercice comptable",
-    tr:{ es:{m:"El ejercicio contable", ph:"el ékherSIsio conTAblé"}, en:{m:"The financial year", ph:"dze faï-NANN-cheul yieur"} } },
-  { id:"c15", cat:"compta", fr:"Une écriture comptable",
-    tr:{ es:{m:"Un asiento contable", ph:"oun aSIENto conTAblé"}, en:{m:"A journal entry", ph:"e DJEUR-neul ÈN-tri"} } },
-  { id:"c16", cat:"compta", fr:"Pouvez-vous m'envoyer la facture ?",
-    tr:{ es:{m:"¿Puede enviarme la factura?", ph:"POUÉdé enviARmé la facTOUra"}, en:{m:"Could you send me the invoice?", ph:"koud you sènd mi dzi IN-voïss"} } },
-  { id:"c17", cat:"compta", fr:"Le paiement est en retard",
-    tr:{ es:{m:"El pago está atrasado", ph:"el PAgo esTA atraSAdo"}, en:{m:"The payment is overdue", ph:"dze PÉÏ-meunt iz o-veur-DIOU"} } },
-  { id:"c18", cat:"compta", fr:"Quelle est la date d'échéance ?",
-    tr:{ es:{m:"¿Cuál es la fecha de vencimiento?", ph:"koual ess la FÉtcha dé vensiMIENto"}, en:{m:"What's the due date?", ph:"ouotts dze diou déïte"} } },
-
-  // ── Se présenter ───────────────────────────────────────────────────
-  { id:"p1",  cat:"presenter", fr:"Prénom",
-    tr:{ es:{m:"El nombre", ph:"el NOMbré"}, en:{m:"First name", ph:"FEURST néïm"} } },
-  { id:"p2",  cat:"presenter", fr:"Nom",
-    tr:{ es:{m:"El apellido", ph:"el apéYIdo"}, en:{m:"Surname / Last name", ph:"SEUR-néïm / LAST néïm"} } },
-  { id:"p3",  cat:"presenter", fr:"Surnom",
-    tr:{ es:{m:"El apodo", ph:"el aPOdo"}, en:{m:"Nickname", ph:"NIK-néïm"} } },
-  { id:"p4",  cat:"presenter", fr:"Comment vous appelez-vous ?",
-    tr:{ es:{m:"¿Cómo se llama?", ph:"KOmo sé YAma"}, en:{m:"What's your name?", ph:"ouotts yor néïm"} } },
-  { id:"p5",  cat:"presenter", fr:"Je m'appelle Julie Frédérique.",
-    tr:{ es:{m:"Me llamo Julie Frédérique.", ph:"mé YAmo Julie Frédérique"}, en:{m:"My name is Julie Frédérique.", ph:"maï néïm iz Julie Frédérique"} } },
-  { id:"p6",  cat:"presenter", fr:"Rappelez-moi votre nom ?",
-    tr:{ es:{m:"¿Me recuerda su nombre?", ph:"mé réKOUERda sou NOMbré"}, en:{m:"What's your name again?", ph:"ouotts yor néïm e-GUÈN"} } },
-  { id:"p7",  cat:"presenter", fr:"Quel est votre nom de famille ?",
-    tr:{ es:{m:"¿Cuál es su apellido?", ph:"koual ess sou apéYIdo"}, en:{m:"What's your surname?", ph:"ouotts yor SEUR-néïm"} } },
-  { id:"p8",  cat:"presenter", fr:"Quel est votre prénom ?",
-    tr:{ es:{m:"¿Cuál es su nombre?", ph:"koual ess sou NOMbré"}, en:{m:"What's your first name?", ph:"ouotts yor feurst néïm"} } },
-  { id:"p9",  cat:"presenter", fr:"Puis-je vous appeler par votre prénom, Mark ?",
-    tr:{ es:{m:"¿Puedo llamarle Mark?", ph:"POUÉdo yaMARlé Mark"}, en:{m:"May I call you Mark?", ph:"méï aï kol you Mark"} } },
-  { id:"p10", cat:"presenter", fr:"Quel âge as-tu / avez-vous ?",
-    tr:{ es:{m:"¿Cuántos años tiene?", ph:"KOUANtoss Agnoss TIÉné"}, en:{m:"How old are you?", ph:"haou old ar you"} } },
-  { id:"p11", cat:"presenter", fr:"J'ai 35 ans.",
-    tr:{ es:{m:"Tengo 35 años.", ph:"TÈNEgo treinta i SINco Agnoss"}, en:{m:"I'm 35 (years old).", ph:"aïm SEUR-ti faïv yieurz old"} } },
-  { id:"p12", cat:"presenter", fr:"J'ai la quarantaine.",
-    tr:{ es:{m:"Tengo cuarenta y tantos.", ph:"TÈNEgo couaRÈNta i TANtoss"}, en:{m:"I'm in my forties.", ph:"aïm inn maï FOR-tiz"} } },
-  { id:"p13", cat:"presenter", fr:"Avez-vous des frères et sœurs ?",
-    tr:{ es:{m:"¿Tiene hermanos?", ph:"TIÉné erMAnoss"}, en:{m:"Have you got any brothers or sisters?", ph:"hav you gott È-ni BRE-dzeurz or SIS-teurz"} } },
-  { id:"p14", cat:"presenter", fr:"J'ai deux sœurs mais pas de frère.",
-    tr:{ es:{m:"Tengo dos hermanas pero ningún hermano.", ph:"TÈNEgo doss erMAnass PÉro ninGOUN erMAno"}, en:{m:"I've got two sisters but no brother.", ph:"aïv gott tou SIS-teurz beut no BRE-dzeur"} } },
-  { id:"p15", cat:"presenter", fr:"Non, je suis fils / fille unique.",
-    tr:{ es:{m:"No, soy hijo / hija único/a.", ph:"no soï Ikho / Ikha OUnico"}, en:{m:"No, I'm an only child.", ph:"no aïm eun ON-li tchaïld"} } },
-  { id:"p16", cat:"presenter", fr:"Êtes-vous marié ?",
-    tr:{ es:{m:"¿Está casado?", ph:"esTA caSAdo"}, en:{m:"Are you married?", ph:"ar you MA-rid"} } },
-  { id:"p17", cat:"presenter", fr:"Non, je suis célibataire.",
-    tr:{ es:{m:"No, estoy soltero/a.", ph:"no esTOÏ solTÉro"}, en:{m:"No, I'm single.", ph:"no aïm SINN-gueul"} } },
-  { id:"p18", cat:"presenter", fr:"Avez-vous des enfants ?",
-    tr:{ es:{m:"¿Tiene hijos?", ph:"TIÉné Ikhoss"}, en:{m:"Do you have any children?", ph:"dou you hav È-ni TCHIL-dreun"} } },
-  { id:"p19", cat:"presenter", fr:"D'où venez-vous ?",
-    tr:{ es:{m:"¿De dónde es?", ph:"dé DONNdé ess"}, en:{m:"Where are you from?", ph:"ouèr ar you from"} } },
-  { id:"p20", cat:"presenter", fr:"Quelle est votre nationalité ?",
-    tr:{ es:{m:"¿Cuál es su nacionalidad?", ph:"koual ess sou nassionaliDAD"}, en:{m:"What nationality are you?", ph:"ouott na-cheu-NA-li-ti ar you"} } },
-  { id:"p21", cat:"presenter", fr:"Je suis allemand.",
-    tr:{ es:{m:"Soy alemán.", ph:"soï aléMANE"}, en:{m:"I'm German.", ph:"aïm DJEUR-meun"} } },
-  { id:"p22", cat:"presenter", fr:"D'où venez-vous ?",
-    tr:{ es:{m:"¿De dónde viene?", ph:"dé DONNdé BIÉné"}, en:{m:"Where do you come from?", ph:"ouèr dou you keum from"} } },
-  { id:"p23", cat:"presenter", fr:"Je suis de Berlin.",
-    tr:{ es:{m:"Soy de Berlín.", ph:"soï dé berLINE"}, en:{m:"I'm from Berlin.", ph:"aïm from beur-LINN"} } },
-  { id:"p24", cat:"presenter", fr:"Je viens de Stuttgart.",
-    tr:{ es:{m:"Vengo de Stuttgart.", ph:"BÈNEgo dé Stuttgart"}, en:{m:"I come from Stuttgart.", ph:"aï keum from STOUT-gart"} } },
-  { id:"p25", cat:"presenter", fr:"Où habitez-vous ?",
-    tr:{ es:{m:"¿Dónde vive?", ph:"DONNdé BIbé"}, en:{m:"Where do you live?", ph:"ouèr dou you liv"} } },
-  { id:"p26", cat:"presenter", fr:"Je vis en Espagne.",
-    tr:{ es:{m:"Vivo en España.", ph:"BIbo en esPAgna"}, en:{m:"I live in Spain.", ph:"aï liv inn spéïn"} } },
-  { id:"p27", cat:"presenter", fr:"J'habite seul.",
-    tr:{ es:{m:"Vivo solo.", ph:"BIbo SOlo"}, en:{m:"I live on my own.", ph:"aï liv onn maï ONE"} } },
-  { id:"p28", cat:"presenter", fr:"Je partage un appartement avec deux colocataires.",
-    tr:{ es:{m:"Comparto piso con dos compañeros.", ph:"comPARto PIso con doss compaGNÉross"}, en:{m:"I share a flat with two flatmates.", ph:"aï chèr e flatt ouidz tou FLAT-méïts"} } },
-  { id:"p29", cat:"presenter", fr:"Où étudiez-vous ?",
-    tr:{ es:{m:"¿Dónde estudia?", ph:"DONNdé esTOUdia"}, en:{m:"Where do you study?", ph:"ouèr dou you STEU-di"} } },
-  { id:"p30", cat:"presenter", fr:"Où avez-vous appris l'espagnol ?",
-    tr:{ es:{m:"¿Dónde aprendió español?", ph:"DONNdé aprenDIO espaGNOL"},
-         en:{m:"Where did you learn to speak English?", ph:"ouèr did you leurn tou spiik INN-glich", fr:"Où avez-vous appris l'anglais ?"} } },
-  { id:"p31", cat:"presenter", fr:"Vous parlez bien espagnol !",
-    tr:{ es:{m:"¡Habla muy bien español!", ph:"Abla mouï bienn espaGNOL"},
-         en:{m:"Your English is quite good!", ph:"yor INN-glich iz kouaït goud", fr:"Vous parlez bien anglais !"} } },
-  { id:"p32", cat:"presenter", fr:"L'espagnol n'est pas ma langue maternelle, mais j'aime le parler.",
-    tr:{ es:{m:"El español no es mi lengua materna, pero me encanta hablarlo.", ph:"el espaGNOL no ess mi LÈNEgoua maTERna PÉro mé enCANta aBLARlo"},
-         en:{m:"English is not my mother tongue, but I love to speak it.", ph:"INN-glich iz nott maï MEU-dzeur teunng beut aï leuv tou spiik it", fr:"L'anglais n'est pas ma langue maternelle, mais j'aime le parler."} } },
-  { id:"p33", cat:"presenter", fr:"Que faites-vous dans la vie ?",
-    tr:{ es:{m:"¿A qué se dedica?", ph:"a ké sé déDIca"}, en:{m:"What do you do for a living?", ph:"ouott dou you dou for e LI-vinng"} } },
-  { id:"p34", cat:"presenter", fr:"Quel est votre métier ?",
-    tr:{ es:{m:"¿Cuál es su profesión?", ph:"koual ess sou proféSION"}, en:{m:"What's your job?", ph:"ouotts yor djob"} } },
-  { id:"p35", cat:"presenter", fr:"Je travaille comme vendeuse chez Gap.",
-    tr:{ es:{m:"Trabajo como vendedora en Gap.", ph:"traBAkho KOmo vendéDOra en Gap"}, en:{m:"I work as a salesperson at Gap.", ph:"aï oueurk az e SÉÏLZ-peur-seun att Gap"} } },
-  { id:"p36", cat:"presenter", fr:"Je suis traducteur / comptable.",
-    tr:{ es:{m:"Soy traductor / contable.", ph:"soï tradoucTOR / conTAblé"}, en:{m:"I'm a translator / an accountant.", ph:"aïm e trann-SLÉÏ-teur / eun e-KAOUN-teunt"} } },
-  { id:"p37", cat:"presenter", fr:"Je travaille chez Ubisoft.",
-    tr:{ es:{m:"Trabajo en Ubisoft.", ph:"traBAkho en Ubisoft"}, en:{m:"I work at Ubisoft.", ph:"aï oueurk att YOU-bi-soft"} } },
-  { id:"p38", cat:"presenter", fr:"Depuis quand travaillez-vous pour Ubisoft ?",
-    tr:{ es:{m:"¿Cuánto tiempo lleva trabajando en Ubisoft?", ph:"KOUANto TIEMpo YÉva trabaKHANdo en Ubisoft"}, en:{m:"How long have you been working for Ubisoft?", ph:"haou lonng hav you binn OUEUR-kinng for Ubisoft"} } },
-  { id:"p39", cat:"presenter", fr:"Que faites-vous ici ?",
-    tr:{ es:{m:"¿Qué hace aquí?", ph:"ké Assé aKI"}, en:{m:"What are you doing here?", ph:"ouott ar you DOU-inng HIeur"} } },
-  { id:"p40", cat:"presenter", fr:"Je suis ici en voyage d'affaires.",
-    tr:{ es:{m:"Estoy aquí en viaje de negocios.", ph:"esTOÏ aKI en BIAkhé dé néGOsioss"}, en:{m:"I'm here on a business trip.", ph:"aïm HIeur onn e BIZ-ness trip"} } },
-  { id:"p41", cat:"presenter", fr:"Depuis quand êtes-vous ici ?",
-    tr:{ es:{m:"¿Cuánto tiempo lleva aquí?", ph:"KOUANto TIEMpo YÉva aKI"}, en:{m:"How long have you been here?", ph:"haou lonng hav you binn HIeur"} } },
-  { id:"p42", cat:"presenter", fr:"Je suis à Paris depuis lundi.",
-    tr:{ es:{m:"Estoy en París desde el lunes.", ph:"esTOÏ en paRISS DESdé el LOUness"}, en:{m:"I've been in Paris since Monday.", ph:"aïv binn inn PA-riss sinns MEUN-déï"} } },
-  { id:"p43", cat:"presenter", fr:"Est-ce votre premier séjour ici ?",
-    tr:{ es:{m:"¿Es su primera vez aquí?", ph:"ess sou priMÉra bess aKI"}, en:{m:"Is this your first time here?", ph:"iz dziss yor feurst taïm HIeur"} } },
-  { id:"p44", cat:"presenter", fr:"Appréciez-vous votre séjour ?",
-    tr:{ es:{m:"¿Está disfrutando su estancia?", ph:"esTA disfroutTANdo sou esTANsia"}, en:{m:"Are you enjoying your trip?", ph:"ar you inn-DJOÏ-inng yor trip"} } },
-  { id:"p45", cat:"presenter", fr:"Ça a été un plaisir de bavarder avec vous.",
-    tr:{ es:{m:"Ha sido un placer charlar con usted.", ph:"a SIdo oun plaSER tcharLAR con ousTED"}, en:{m:"It was nice chatting with you.", ph:"it ouoz naïss TCHA-tinng ouidz you"} } },
-  { id:"p46", cat:"presenter", fr:"Je suis ravi d'avoir enfin fait votre connaissance.",
-    tr:{ es:{m:"Me alegro de conocerle por fin.", ph:"mé aLÉgro dé conoSERlé por fINE"}, en:{m:"I'm glad we finally met.", ph:"aïm glad oui FAÏ-neu-li mètt"} } },
-  { id:"p47", cat:"presenter", fr:"J'aimerais vous revoir, voici mes coordonnées.",
-    tr:{ es:{m:"Me gustaría volver a verle, aquí tiene mis datos.", ph:"mé goustaRIa bolBER a VERlé aKI TIÉné miss DAtoss"}, en:{m:"I'd like to see you again, here's my name and address.", ph:"aïd laïk tou si you e-GUÈN HIeurz maï néïm and e-DRÈSS"} } }
+  { id:"b1", cat:"base", fr:"Bonjour",
+    tr:{ es:{ m:"Buenos días",  ph:"BOUEnoss DIass" },
+         en:{ m:"Good morning", ph:"goud MOR-ninng" },
+         it:{ m:"Buongiorno",   ph:"bouonDJORno" } } },           // ← ajout
+  …
 ];
-/* ═══════════════ FIN DU CONTENU ═══════════════ */
-</script>
+```
 
-<style>
-:root{
-  --bg:#E7E8E2; --card:#FBFAF7; --ink:#12161A; --muted:#6B7178;
-  --rule:#C6C8C0; --signal:#E39A05; --stamp:#1B6B58; --alert:#A93B2C;
-  --line:#D6D8D0;
-  --display:"Roboto Condensed","Arial Narrow","Helvetica Neue Condensed",system-ui,sans-serif;
-  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
-  --pad:16px;
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#101418;--card:#1A1F25;--ink:#E7E8E2;--muted:#8B939B;
-        --rule:#39414A;--line:#2A3138;--signal:#F0AE2E;--stamp:#4FB89C;--alert:#E0705F}
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
-body{
-  background:var(--bg);color:var(--ink);font-family:var(--body);
-  font-size:16px;line-height:1.45;
-  padding-bottom:calc(76px + env(safe-area-inset-bottom));
-  overscroll-behavior-y:contain;
-}
-button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
-:focus-visible{outline:2.5px solid var(--signal);outline-offset:2px}
+Points d'attention :
 
-header{
-  position:sticky;top:0;z-index:20;background:var(--bg);
-  padding:calc(10px + env(safe-area-inset-top)) var(--pad) 8px;
-  border-bottom:1px solid var(--line);
-}
-.topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-.langpick{
-  display:flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid var(--rule);
-  border-radius:999px;font-family:var(--display);font-size:13px;letter-spacing:.06em;color:var(--ink)
-}
-.langpick .dropcue{font-size:9px;color:var(--muted)}
-.route{display:flex;align-items:center;gap:10px;margin-top:9px}
-.code{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.06em;line-height:1}
-.dots{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--rule) 0 4px,transparent 4px 9px)}
-.count{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+- Le français (`fr`) est **partagé** par toutes les langues. Ne le dupliquez pas
+  par langue. Exception rare : si le texte français nomme la langue cible, on
+  peut le surcharger pour une langue via `tr[<code>].fr` (c'est le cas de deux
+  phrases seulement, `b7` et `b11`).
+- Chaque langue déclarée dans `LANGUES` doit être présente dans le `tr` de
+  **toutes** les phrases, sinon celles qui manquent planteront à l'affichage.
+- Les `id` doivent être **uniques et stables** : c'est la clé de la progression
+  enregistrée. Changer un `id` remet la phrase à zéro, dans toutes les langues.
+- Dans `ph`, la syllabe en majuscules porte l'accent tonique. C'est la
+  convention retenue ici, pas un standard.
 
-main{padding:14px var(--pad) 20px;max-width:640px;margin:0 auto}
-.view{display:none} .view.on{display:block}
+Après modification, **incrémenter `CACHE` dans `sw.js`** (p. ex. `escale-v5` →
+`escale-v6`), sinon l'ancienne version continuera d'être servie depuis le cache.
+Voir la section « Mettre à jour l'app » ci-dessus pour la procédure de
+déploiement.
 
-.chips{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;-ms-overflow-style:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{
-  flex:0 0 auto;padding:7px 13px;border:1px solid var(--rule);border-radius:999px;
-  font-family:var(--display);font-size:14px;letter-spacing:.02em;white-space:nowrap;color:var(--muted)
-}
-.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+---
 
-.ticket{
-  position:relative;background:var(--card);border:1px solid var(--line);
-  border-radius:6px;margin-bottom:12px;overflow:hidden
-}
-.stub{padding:13px 14px 12px 42px}
-.fr{font-size:17px;font-weight:500;letter-spacing:-.01em}
-.perf{position:relative;height:1px;margin:0 12px;border-top:1.5px dashed var(--rule)}
-.perf::before,.perf::after{
-  content:"";position:absolute;top:-9px;width:17px;height:17px;border-radius:50%;
-  background:var(--bg);border:1px solid var(--line)
-}
-.perf::before{left:-21px} .perf::after{right:-21px}
-.body{padding:13px 14px 14px;display:flex;align-items:flex-start;gap:10px}
-.body .txt{flex:1;min-width:0}
-.target{font-family:var(--display);font-size:21px;font-weight:600;letter-spacing:.005em;line-height:1.25}
-.ph{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:5px;letter-spacing:-.01em}
-.say{
-  flex:0 0 auto;width:42px;height:42px;border:1px solid var(--rule);border-radius:50%;
-  display:grid;place-items:center;font-size:17px;color:var(--muted)
-}
-.say:active{background:var(--signal);border-color:var(--signal);color:#12161A}
-.star{position:absolute;top:9px;right:9px;font-size:16px;color:var(--rule);padding:5px;line-height:1}
-.star[aria-pressed="true"]{color:var(--signal)}
-.done{position:absolute;top:9px;left:9px;font-size:17px;color:var(--rule);padding:5px;line-height:1}
-.done[aria-pressed="true"]{color:var(--stamp)}
-.ticket.maitrisee{border-color:var(--stamp)}
-.ticket.maitrisee .fr{color:var(--stamp)}
-.ticket.maitrisee .target{color:var(--stamp)}
+## Répétition espacée
 
-.stamp{
-  position:absolute;right:16px;bottom:12px;transform:rotate(-13deg);
-  border:2.5px solid var(--stamp);color:var(--stamp);border-radius:3px;
-  padding:3px 9px;font-family:var(--mono);font-size:11px;font-weight:700;
-  letter-spacing:.16em;opacity:.7;pointer-events:none
-}
+Cinq boîtes façon Leitner, intervalles en jours définis en tête de script :
 
-.rev-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
-.big-ticket .stub{padding:26px 18px 22px;min-height:112px;display:grid;align-items:center}
-.ecoute-now{background:var(--card);border:1px solid var(--line);border-radius:6px;
-  padding:22px 16px;margin-bottom:18px;text-align:center;min-height:104px;
-  display:grid;align-content:center;gap:6px}
-.ecoute-now .fr2{font-size:18px;font-weight:500}
-.ecoute-now .target2{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.2}
-.ecoute-now .ph2{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
-.ecoute-now.idle{color:var(--muted)}
-.stepper{display:flex;align-items:center;gap:12px}
-.stepper button{width:34px;height:34px;border:1.5px solid var(--rule);border-radius:50%;
-  font-size:19px;color:var(--ink);display:grid;place-items:center;padding:0}
-.stepper .val{font-family:var(--mono);font-size:15px;min-width:30px;text-align:center}
-.playing{border-color:var(--stamp)!important;color:var(--stamp)!important}
-.big-ticket .fr{font-size:22px;line-height:1.35}
-.big-ticket .body{padding:20px 18px 24px}
-.hidden-body{display:none}
-.reveal{animation:tear .26s ease-out}
-@keyframes tear{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
-.grades{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
-.grade{
-  padding:14px 6px;border:1.5px solid var(--rule);border-radius:5px;
-  font-family:var(--display);font-size:14px;letter-spacing:.03em;text-transform:uppercase
-}
-.grade.g1{border-color:var(--alert);color:var(--alert)}
-.grade.g3{border-color:var(--stamp);color:var(--stamp)}
-.grade:active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.primary{
-  width:100%;padding:16px;background:var(--ink);color:var(--bg);border-radius:5px;
-  font-family:var(--display);font-size:16px;letter-spacing:.08em;text-transform:uppercase;margin-top:14px
-}
-.boxes{display:flex;gap:3px;margin-top:6px}
-.box{width:22px;height:4px;border-radius:2px;background:var(--rule)}
-.box.f{background:var(--signal)}
-
-.opt{
-  display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;
-  background:var(--card);border:1px solid var(--line);border-radius:5px;font-size:16px
-}
-.opt.ok{border-color:var(--stamp);background:color-mix(in srgb,var(--stamp) 12%,var(--card))}
-.opt.ko{border-color:var(--alert);background:color-mix(in srgb,var(--alert) 12%,var(--card))}
-.prompt{font-family:var(--display);font-size:26px;font-weight:600;margin:6px 0 18px;line-height:1.25}
-
-.row{display:flex;justify-content:space-between;align-items:center;gap:12px;
-     padding:14px 0;border-bottom:1px solid var(--line)}
-.row p{margin:4px 0 0;font-size:13.5px;color:var(--muted);line-height:1.4}
-.toggle{padding:8px 15px;border:1.5px solid var(--rule);border-radius:999px;
-        font-family:var(--mono);font-size:12px;letter-spacing:.06em;white-space:nowrap}
-.toggle[aria-pressed="true"]{border-color:var(--signal);color:var(--signal)}
-.seg{display:flex;gap:6px}
-.seg button{padding:8px 14px;border:1.5px solid var(--rule);border-radius:999px;
-        font-family:var(--display);font-size:14px;letter-spacing:.04em;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.note{font-size:13.5px;color:var(--muted);line-height:1.55}
-.note code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
-.danger{color:var(--alert);border-color:var(--alert)}
-.empty{text-align:center;padding:48px 20px;color:var(--muted)}
-.empty .k{font-family:var(--display);font-size:22px;color:var(--ink);display:block;margin-bottom:8px}
-
-nav{
-  position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
-  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);
-  padding-bottom:env(safe-area-inset-bottom)
-}
-nav button{padding:11px 4px 12px;font-family:var(--display);font-size:12px;
-           letter-spacing:.09em;text-transform:uppercase;color:var(--muted);position:relative}
-nav button[aria-current="true"]{color:var(--ink)}
-nav button[aria-current="true"]::before{
-  content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
-  width:30px;height:3px;background:var(--signal)}
-nav .ic{display:block;font-size:17px;margin-bottom:2px}
-.badge{position:absolute;top:6px;right:calc(50% - 26px);min-width:17px;height:17px;
-       border-radius:9px;background:var(--signal);color:#12161A;font-family:var(--mono);
-       font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 4px}
-
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-
-<header>
-  <div class="topline">
-    <div class="eyebrow" id="eyebrow">Escale</div>
-    <button class="langpick" id="langpick" aria-label="Changer de langue">
-      <span id="langpickLabel">ES</span><span class="dropcue">▼</span>
-    </button>
-  </div>
-  <div class="route">
-    <span class="code" id="cFrom">FR</span>
-    <span class="dots"></span>
-    <span class="code" id="cTo">ES</span>
-    <span class="dots"></span>
-    <span class="count" id="hcount">—</span>
-  </div>
-</header>
-
-<main>
-  <section class="view on" id="v-guide">
-    <div class="chips" id="chips"></div>
-    <div id="list"></div>
-  </section>
-
-  <section class="view" id="v-revise"></section>
-  <section class="view" id="v-test"></section>
-  <section class="view" id="v-ecoute"></section>
-
-  <section class="view" id="v-reglages">
-    <div class="row">
-      <div><strong>Langue cible</strong><p>Chaque langue garde sa propre progression.</p></div>
-      <div class="seg" id="segLang"></div>
-    </div>
-    <div class="row">
-      <div><strong>Sens de révision</strong><p>Ce qui s'affiche en premier sur le billet.</p></div>
-      <button class="toggle" id="tDir">FR › ES</button>
-    </div>
-    <div class="row">
-      <div><strong>Prononciation vocale</strong><p id="voiceState">Vérification…</p></div>
-      <button class="toggle" id="tTts" aria-pressed="true">Activée</button>
-    </div>
-    <div class="row">
-      <div><strong>Progression (<span id="progLang">ES</span>)</strong><p id="progState">—</p></div>
-      <button class="toggle danger" id="tReset">Effacer</button>
-    </div>
-    <div style="padding:18px 0 0">
-      <div class="eyebrow" style="margin-bottom:8px">Lire la phonétique</div>
-      <p class="note" id="guideText"></p>
-      <div class="eyebrow" style="margin:20px 0 8px">Répétition espacée</div>
-      <p class="note">
-        Cinq boîtes façon Leitner. Une phrase marquée <em>Acquis</em> monte d'une boîte et
-        revient après 1, 3, 7 puis 21 jours. <em>À revoir</em> la renvoie en boîte 1.
-        Ces intervalles sont un réglage de départ, pas une valeur canonique — ils se changent
-        dans <code>INTERVALLES</code>, en haut du script.
-      </p>
-      <div class="eyebrow" style="margin:20px 0 8px">Hors-ligne</div>
-      <p class="note">
-        Tout le contenu est embarqué dans la page : le guide, la révision et le test
-        fonctionnent sans réseau une fois l'app installée. La <strong>voix</strong> dépend du
-        moteur de synthèse d'Android : sans réseau, elle ne parle que si le pack vocal de la
-        langue a été téléchargé sur l'appareil (Paramètres → Langues → Sortie de synthèse vocale).
-      </p>
-    </div>
-  </section>
-</main>
-
-<nav>
-  <button id="n-guide"  aria-current="true"><span class="ic">☰</span>Guide</button>
-  <button id="n-revise"><span class="ic">◈</span>Réviser<span class="badge" id="badge" hidden>0</span></button>
-  <button id="n-test"><span class="ic">◎</span>Test</button>
-  <button id="n-ecoute"><span class="ic">♪</span>Écoute</button>
-  <button id="n-reglages"><span class="ic">⚙</span>Réglages</button>
-</nav>
-
-<script>
-/* ═══ Réglage du moteur de répétition espacée (jours, boîtes 1→5) ═══ */
+```js
 const INTERVALLES = [0, 1, 3, 7, 21];
+```
 
-/* ── Stockage : localStorage si dispo, mémoire vive sinon ──────────── */
-const mem = {};
-const DB = {
-  get(k){ try { return localStorage.getItem(k); } catch(e){ return mem[k] ?? null; } },
-  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ mem[k] = v; } },
-  del(k){ try { localStorage.removeItem(k); } catch(e){ delete mem[k]; } }
-};
+- **Acquis** → boîte +1, réapparition après l'intervalle de la nouvelle boîte
+- **Presque** → boîte inchangée, réapparition après le même intervalle
+- **À revoir** → retour en boîte 1
 
-/* Préférences globales (communes à toutes les langues) : langue active,
-   sens de révision, voix. Clé escale.meta. */
-const CLE_META = "escale.meta";
-let META = JSON.parse(DB.get(CLE_META) || '{"langue":"es","dir":"fr","tts":true}');
-if(!(META.langue in LANGUES)) META.langue = Object.keys(LANGUES)[0];
-META.dir ||= "fr"; META.tts ??= true;
-META.rep = (typeof META.rep === "number") ? META.rep : 2;      // répétitions par phrase (écoute)
-META.gap = (typeof META.gap === "number") ? META.gap : 3000;   // délai entre répétitions, ms
-const saveMeta = () => DB.set(CLE_META, JSON.stringify(META));
+Ces valeurs sont un réglage de départ choisi pour un usage court avant départ,
+pas une constante canonique. Elles se modifient librement.
 
-/* Progression + favoris : PROPRES À CHAQUE LANGUE. Clé escale.<langue>. */
-const cleLangue = lg => "escale." + lg;
-let S;
-function chargerLangue(lg){
-  S = JSON.parse(DB.get(cleLangue(lg)) || '{"prog":{},"favs":[]}');
-  S.prog ||= {}; S.favs ||= []; S.maitrise ||= [];
-}
-const save = () => DB.set(cleLangue(META.langue), JSON.stringify(S));
-chargerLangue(META.langue);
+---
 
-/* ── Accès au contenu selon la langue active ───────────────────────── */
-const LG   = () => LANGUES[META.langue];
-const mot  = it => it.tr[META.langue].m;                 // texte en langue cible
-const phon = it => it.tr[META.langue].ph;                // phonétique
-const src  = it => it.tr[META.langue].fr || it.fr;       // français (avec override éventuel)
-const estMaitrise = id => S.maitrise.includes(id);       // maîtrise MANUELLE, propre à la langue
+## Stockage
 
-const JOUR = 864e5;
-const fiche = id => S.prog[id] || (S.prog[id] = { box:1, due:0, ok:0, ko:0 });
-const dues  = () => ITEMS.filter(i => fiche(i.id).due <= Date.now());
-const acquis= () => ITEMS.filter(i => fiche(i.id).box >= 4).length;
+Les préférences (langue active, sens de révision, voix, réglages d'écoute) sont
+dans `escale.meta` ; la progression, les favoris et les phrases maîtrisées de
+chaque langue dans une clé `escale.<langue>` distincte (`escale.es`,
+`escale.en`…). D'où l'isolement par langue. L'accès est encapsulé dans un
+adaptateur qui bascule sur une mémoire volatile si `localStorage` est
+indisponible (navigation privée, iframe cloisonnée) : l'app reste utilisable,
+mais ne conserve rien.
 
-/* ── Synthèse vocale ───────────────────────────────────────────────── */
-let voix = null;
-function chargerVoix(){
-  const el = document.getElementById("voiceState");
-  if(!("speechSynthesis" in window)){ if(el) el.textContent = "Synthèse vocale non prise en charge par ce navigateur."; return; }
-  const vs = speechSynthesis.getVoices();
-  voix = vs.find(v => v.lang.replace("_","-") === LG().bcp47)
-      || vs.find(v => v.lang.slice(0,2) === META.langue) || null;
-  if(!el) return;
-  el.textContent = !vs.length ? "Aucune voix détectée sur cet appareil."
-    : voix ? "Voix trouvée : " + voix.name
-    : "Aucune voix " + LG().nom.toLowerCase() + " installée sur cet appareil.";
-}
-if("speechSynthesis" in window){
-  chargerVoix();
-  speechSynthesis.addEventListener("voiceschanged", chargerVoix);
-} else {
-  addEventListener("DOMContentLoaded", chargerVoix);
-}
-function dire(txt){
-  if(!META.tts || !("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(txt);
-  u.lang = LG().bcp47; if(voix) u.voice = voix; u.rate = .88;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
-}
+L'option **Effacer** de l'écran Réglages ne remet à zéro que la **langue
+active** ; pour tout effacer, videz les données du site depuis le navigateur.
 
-/* ── Rendu d'un billet ─────────────────────────────────────────────── */
-const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function billet(it){
-  const f = fiche(it.id), fav = S.favs.includes(it.id), m = estMaitrise(it.id);
-  return `<article class="ticket ${m ? "maitrisee" : ""}" data-id="${it.id}">
-    <button class="done" aria-pressed="${m}" aria-label="Marquer comme maîtrisée">${m?"☑":"☐"}</button>
-    <button class="star" aria-pressed="${fav}" aria-label="Mettre en favori">${fav?"★":"☆"}</button>
-    <div class="stub"><div class="fr">${esc(src(it))}</div></div>
-    <div class="perf"></div>
-    <div class="body">
-      <div class="txt">
-        <div class="target">${esc(mot(it))}</div>
-        <div class="ph">${esc(phon(it))}</div>
-      </div>
-      <button class="say" aria-label="Écouter">▶</button>
-    </div>
-    ${f.box >= 4 ? '<span class="stamp">ACQUIS</span>' : ""}
-  </article>`;
-}
-
-/* ── Vue Guide ─────────────────────────────────────────────────────── */
-let catActive = "tous";
-function rendreChips(){
-  const cs = [{id:"tous",nom:"Tout"},{id:"fav",nom:"★ Favoris"},...CATS];
-  document.getElementById("chips").innerHTML = cs.map(c =>
-    `<button class="chip" data-cat="${c.id}" aria-pressed="${c.id===catActive}">${c.nom}</button>`).join("");
-}
-function rendreListe(){
-  let items = catActive === "tous" ? ITEMS
-    : catActive === "fav" ? ITEMS.filter(i => S.favs.includes(i.id))
-    : ITEMS.filter(i => i.cat === catActive);
-  const l = document.getElementById("list");
-  l.innerHTML = items.length ? items.map(billet).join("")
-    : `<div class="empty"><span class="k">Aucun favori</span>
-       Touchez l'étoile d'un billet pour le garder sous la main.</div>`;
-}
-
-/* ── Vue Révision ──────────────────────────────────────────────────── */
-let carte = null, devoile = false;
-function rendreRevision(){
-  const v = document.getElementById("v-revise");
-  const pool = dues();
-  if(!pool.length){
-    const prochaine = Math.min(...ITEMS.map(i => fiche(i.id).due));
-    const h = Math.max(1, Math.round((prochaine - Date.now()) / 36e5));
-    v.innerHTML = `<div class="empty"><span class="k">Rien à réviser</span>
-      Prochaine échéance dans environ ${h} h. Le guide reste consultable à tout moment.</div>`;
-    return;
-  }
-  if(!carte || !pool.some(i => i.id === carte.id)){
-    carte = pool.sort((a,b) => fiche(a.id).box - fiche(b.id).box)[0];
-    devoile = false;
-  }
-  const f = fiche(carte.id);
-  const recto = META.dir === "fr" ? src(carte) : mot(carte);
-  const verso = META.dir === "fr" ? mot(carte) : src(carte);
-  const boxes = [1,2,3,4,5].map(n => `<span class="box ${n<=f.box?"f":""}"></span>`).join("");
-  v.innerHTML = `
-    <div class="rev-meta">
-      <div><div class="eyebrow">${pool.length} en attente</div><div class="boxes">${boxes}</div></div>
-      <div class="count">boîte ${f.box}/5</div>
-    </div>
-    <article class="ticket big-ticket">
-      <div class="stub"><div class="fr">${esc(recto)}</div></div>
-      <div class="perf"></div>
-      <div class="body ${devoile?"reveal":"hidden-body"}">
-        <div class="txt">
-          <div class="target">${esc(verso)}</div>
-          <div class="ph">${esc(phon(carte))}</div>
-        </div>
-        <button class="say" id="revSay" aria-label="Écouter">▶</button>
-      </div>
-      ${f.box >= 4 ? '<span class="stamp">ACQUIS</span>' : ""}
-    </article>
-    ${devoile
-      ? `<div class="grades">
-           <button class="grade g1" data-g="1">À revoir</button>
-           <button class="grade g2" data-g="2">Presque</button>
-           <button class="grade g3" data-g="3">Acquis</button>
-         </div>`
-      : `<button class="primary" id="revDeco">Découvrir</button>`}`;
-}
-function noter(g){
-  const f = fiche(carte.id);
-  if(g === 1){ f.box = 1; f.ko++; }
-  else if(g === 3){ f.box = Math.min(5, f.box + 1); f.ok++; }
-  f.due = Date.now() + INTERVALLES[f.box - 1] * JOUR;
-  save(); carte = null; devoile = false; rendreRevision(); majEntete();
-}
-
-/* ── Vue Test ──────────────────────────────────────────────────────── */
-let quiz = null;
-function nouveauQuiz(){
-  const pool = [...ITEMS].sort((a,b) =>
-    (fiche(a.id).box - fiche(b.id).box) || (Math.random() - .5)).slice(0, 24);
-  quiz = { q: pool.sort(() => Math.random() - .5).slice(0, 10), i: 0, score: 0, verrou: false };
-}
-function rendreTest(){
-  const v = document.getElementById("v-test");
-  if(!quiz){
-    v.innerHTML = `<div class="empty"><span class="k">Test rapide</span>
-      Dix phrases, tirées en priorité parmi celles qui résistent le plus.</div>
-      <button class="primary" id="qStart">Commencer</button>`;
-    return;
-  }
-  if(quiz.i >= quiz.q.length){
-    v.innerHTML = `<div class="empty"><span class="k">${quiz.score} / ${quiz.q.length}</span>
-      ${quiz.score >= 8 ? "Solide." : quiz.score >= 5 ? "Ça vient." : "À retravailler dans le guide."}</div>
-      <button class="primary" id="qStart">Recommencer</button>`;
-    quiz = null; return;
-  }
-  const it = quiz.q[quiz.i];
-  const mauvaises = ITEMS.filter(x => x.id !== it.id)
-    .sort(() => Math.random() - .5).slice(0, 3);
-  const opts = [it, ...mauvaises].sort(() => Math.random() - .5);
-  v.innerHTML = `
-    <div class="eyebrow">Question ${quiz.i + 1} / ${quiz.q.length} · ${quiz.score} bonne(s)</div>
-    <div class="prompt">${esc(mot(it))}</div>
-    <div id="opts">${opts.map(o =>
-      `<button class="opt" data-id="${o.id}">${esc(src(o))}</button>`).join("")}</div>`;
-  quiz.bonne = it.id; quiz.verrou = false;
-  dire(mot(it));
-}
-
-/* ── Navigation & en-tête ──────────────────────────────────────────── */
-function majEntete(){
-  document.getElementById("cFrom").textContent = META.dir === "fr" ? ORIGINE : LG().cible;
-  document.getElementById("cTo").textContent   = META.dir === "fr" ? LG().cible : ORIGINE;
-  document.getElementById("hcount").textContent = acquis() + "/" + ITEMS.length + " acquises";
-  document.getElementById("langpickLabel").textContent = LG().cible;
-  const n = dues().length, b = document.getElementById("badge");
-  b.hidden = !n; b.textContent = n > 99 ? "99+" : n;
-  const p = document.getElementById("progState");
-  if(p) p.textContent = acquis() + " phrases acquises, " + dues().length + " à revoir aujourd'hui.";
-  const pl = document.getElementById("progLang"); if(pl) pl.textContent = LG().cible;
-}
-function aller(vue){
-  if(lecture.on && vue !== "ecoute") arreterEcoute();   // ne pas parler hors de la vue Écoute
-  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + vue));
-  document.querySelectorAll("nav button").forEach(b =>
-    b.setAttribute("aria-current", b.id === "n-" + vue));
-  if(vue === "revise") rendreRevision();
-  if(vue === "test") rendreTest();
-  if(vue === "ecoute") rendreEcoute();
-  if(vue === "reglages") rendreReglages();
-  majEntete();
-}
-
-/* ── Changement de langue ──────────────────────────────────────────── */
-function changerLangue(lg){
-  if(!(lg in LANGUES) || lg === META.langue) return;
-  arreterEcoute();              // stoppe toute lecture en cours avant de changer de langue
-  save();                       // sauvegarde la progression de la langue quittée
-  META.langue = lg; saveMeta();
-  chargerLangue(lg);            // charge la progression de la nouvelle langue
-  carte = null; quiz = null; devoile = false; lecture.item = null;
-  chargerVoix();
-  majLibelles(); rendreChips(); rendreListe();
-  const vue = document.querySelector("nav button[aria-current='true']").id.slice(2);
-  aller(vue);
-}
-function langueSuivante(){
-  const ks = Object.keys(LANGUES);
-  changerLangue(ks[(ks.indexOf(META.langue) + 1) % ks.length]);
-}
-
-/* ── Libellés dépendant de la langue ───────────────────────────────── */
-function majLibelles(){
-  document.getElementById("eyebrow").textContent = "Escale · " + LG().nom.toLowerCase() + " de voyage";
-  document.getElementById("tDir").textContent =
-    META.dir === "fr" ? ORIGINE+" › "+LG().cible : LG().cible+" › "+ORIGINE;
-  const g = document.getElementById("guideText"); if(g) g.innerHTML = LG().guide;
-}
-function rendreReglages(){
-  document.getElementById("segLang").innerHTML = Object.entries(LANGUES).map(([k,v]) =>
-    `<button data-lang="${k}" aria-pressed="${k===META.langue}">${v.cible}</button>`).join("");
-  majLibelles(); majEntete();
-}
-
-/* ── Vue Écoute (lecture audio mains libres) ───────────────────────── */
-let lecture = { on:false, item:null, wake:null };
-
-const nonMaitrisees = () => ITEMS.filter(i => !estMaitrise(i.id));
-
-function rendreEcoute(){
-  const v = document.getElementById("v-ecoute");
-  const pool = nonMaitrisees();
-  if(!pool.length){
-    v.innerHTML = `<div class="empty"><span class="k">Tout est maîtrisé</span>
-      Aucune phrase à lire en ${LG().nom.toLowerCase()}. Décoche des phrases dans le Guide
-      pour les réentendre ici.</div>`;
-    return;
-  }
-  const it = lecture.item;
-  v.innerHTML = `
-    <div class="rev-meta">
-      <div><div class="eyebrow">Écoute mains libres · ${LG().nom}</div>
-        <div class="count">${pool.length} phrase(s) non maîtrisée(s)</div></div>
-    </div>
-    <div class="ecoute-now ${it?"":"idle"} ${lecture.on?"playing":""}" id="ecouteNow">
-      ${it
-        ? `<div class="fr2">${esc(src(it))}</div>
-           <div class="target2">${esc(mot(it))}</div>
-           <div class="ph2">${esc(phon(it))}</div>`
-        : `<div class="fr2">Prêt à écouter</div>
-           <div class="ph2">Pose le téléphone sur son support, écran allumé.</div>`}
-    </div>
-    <div class="row">
-      <div><strong>Répétitions</strong><p>Nombre de fois par phrase.</p></div>
-      <div class="stepper">
-        <button data-step="rep" data-d="-1" aria-label="Moins">–</button>
-        <span class="val" id="valRep">${META.rep}</span>
-        <button data-step="rep" data-d="1" aria-label="Plus">+</button>
-      </div>
-    </div>
-    <div class="row">
-      <div><strong>Délai entre répétitions</strong><p>Pause avant de répéter.</p></div>
-      <div class="stepper">
-        <button data-step="gap" data-d="-1" aria-label="Moins">–</button>
-        <span class="val" id="valGap">${(META.gap/1000)} s</span>
-        <button data-step="gap" data-d="1" aria-label="Plus">+</button>
-      </div>
-    </div>
-    <button class="primary" id="ecToggle">${lecture.on ? "Arrêter" : "Démarrer l'écoute"}</button>
-    <p class="note" style="margin-top:14px">
-      La lecture n'a lieu que <strong>app ouverte, écran allumé</strong> (l'app tente de garder
-      l'écran actif). Écran éteint ou app en arrière-plan, Android coupe la voix : c'est une
-      limite du navigateur, pas un réglage.
-    </p>`;
-}
-
-function afficherEcoute(it){
-  const now = document.getElementById("ecouteNow");
-  if(!now) return;
-  now.classList.remove("idle");
-  now.innerHTML = `<div class="fr2">${esc(src(it))}</div>
-    <div class="target2">${esc(mot(it))}</div>
-    <div class="ph2">${esc(phon(it))}</div>`;
-}
-
-// Prononce un texte et résout la promesse à la fin (ou en cas d'erreur).
-function parler(txt, bcp47, useVoix){
-  return new Promise(res => {
-    if(!("speechSynthesis" in window)){ res(); return; }
-    const u = new SpeechSynthesisUtterance(txt);
-    u.lang = bcp47; if(useVoix && voix) u.voice = voix; u.rate = .9;
-    u.onend = res; u.onerror = res;
-    try { speechSynthesis.speak(u); } catch(e){ res(); }
-  });
-}
-const attendre = ms => new Promise(r => setTimeout(r, ms));
-
-async function boucleEcoute(){
-  while(lecture.on){
-    const pool = nonMaitrisees();
-    if(!pool.length){ arreterEcoute(); rendreEcoute(); return; }
-    const it = pool[Math.floor(Math.random() * pool.length)];
-    lecture.item = it; afficherEcoute(it);
-    for(let r = 0; r < META.rep && lecture.on; r++){
-      await parler(src(it), "fr-FR", false);           // français
-      if(!lecture.on) break;
-      await attendre(600);                              // courte pause français → cible
-      if(!lecture.on) break;
-      await parler(mot(it), LG().bcp47, true);          // langue cible
-      if(r < META.rep - 1 && lecture.on) await attendre(META.gap);  // délai avant répétition
-    }
-    if(lecture.on) await attendre(800);                 // pause avant la phrase suivante
-  }
-}
-
-function demarrerEcoute(){
-  if(lecture.on || !nonMaitrisees().length) return;
-  lecture.on = true;
-  if("wakeLock" in navigator){
-    navigator.wakeLock.request("screen").then(w => { lecture.wake = w; }).catch(() => {});
-  }
-  const now = document.getElementById("ecouteNow"); if(now) now.classList.add("playing");
-  const b = document.getElementById("ecToggle"); if(b) b.textContent = "Arrêter";
-  boucleEcoute();
-}
-
-function arreterEcoute(){
-  lecture.on = false;
-  if("speechSynthesis" in window) speechSynthesis.cancel();
-  if(lecture.wake){ try { lecture.wake.release(); } catch(e){} lecture.wake = null; }
-  const now = document.getElementById("ecouteNow"); if(now) now.classList.remove("playing");
-  const b = document.getElementById("ecToggle"); if(b) b.textContent = "Démarrer l'écoute";
-}
-
-// L'écran peut relâcher le verrou d'éveil en repassant au premier plan : on le reprend.
-document.addEventListener("visibilitychange", () => {
-  if(lecture.on && document.visibilityState === "visible"
-     && "wakeLock" in navigator && !lecture.wake){
-    navigator.wakeLock.request("screen").then(w => { lecture.wake = w; }).catch(() => {});
-  }
-});
-
-/* ── Événements (délégation unique) ────────────────────────────────── */
-document.addEventListener("click", e => {
-  const t = e.target;
-
-  const nav = t.closest("nav button");
-  if(nav) return aller(nav.id.slice(2));
-
-  if(t.closest("#langpick")) return langueSuivante();
-
-  const seg = t.closest("#segLang button");
-  if(seg) return changerLangue(seg.dataset.lang);
-
-  const chip = t.closest(".chip");
-  if(chip){ catActive = chip.dataset.cat; rendreChips(); rendreListe(); return; }
-
-  const done = t.closest(".done");
-  if(done){
-    const art = done.closest(".ticket"), id = art.dataset.id;
-    const k = S.maitrise.indexOf(id);
-    k < 0 ? S.maitrise.push(id) : S.maitrise.splice(k, 1);
-    save();
-    art.classList.toggle("maitrisee", k < 0);
-    done.setAttribute("aria-pressed", k < 0); done.textContent = k < 0 ? "☑" : "☐";
-    return;
-  }
-
-  const star = t.closest(".star");
-  if(star){
-    const id = star.closest(".ticket").dataset.id;
-    const k = S.favs.indexOf(id);
-    k < 0 ? S.favs.push(id) : S.favs.splice(k, 1);
-    save(); star.setAttribute("aria-pressed", k < 0); star.textContent = k < 0 ? "★" : "☆";
-    if(catActive === "fav") rendreListe();
-    return;
-  }
-
-  const say = t.closest(".say");
-  if(say){
-    if(say.id === "revSay") return dire(META.dir === "fr" ? mot(carte) : src(carte));
-    const it = ITEMS.find(i => i.id === say.closest(".ticket").dataset.id);
-    return dire(mot(it));
-  }
-
-  if(t.id === "revDeco"){ devoile = true; rendreRevision(); return dire(mot(carte)); }
-  const g = t.closest(".grade"); if(g) return noter(+g.dataset.g);
-
-  if(t.id === "qStart"){ nouveauQuiz(); return rendreTest(); }
-  const opt = t.closest(".opt");
-  if(opt && quiz && !quiz.verrou){
-    quiz.verrou = true;
-    const bon = opt.dataset.id === quiz.bonne;
-    if(bon) quiz.score++;
-    document.querySelectorAll(".opt").forEach(o => {
-      if(o.dataset.id === quiz.bonne) o.classList.add("ok");
-      else if(o === opt) o.classList.add("ko");
-    });
-    setTimeout(() => { quiz.i++; rendreTest(); }, bon ? 550 : 1300);
-    return;
-  }
-
-  const step = t.closest(".stepper button");
-  if(step){
-    const d = +step.dataset.d;
-    if(step.dataset.step === "rep"){
-      META.rep = Math.max(1, Math.min(9, META.rep + d));
-      document.getElementById("valRep").textContent = META.rep;
-    } else {
-      META.gap = Math.max(0, Math.min(10000, META.gap + d * 1000));
-      document.getElementById("valGap").textContent = (META.gap/1000) + " s";
-    }
-    saveMeta(); return;
-  }
-  if(t.id === "ecToggle"){ lecture.on ? arreterEcoute() : demarrerEcoute(); return; }
-
-  if(t.id === "tDir"){ META.dir = META.dir === "fr" ? "cible" : "fr"; saveMeta();
-    majLibelles(); carte = null; majEntete(); return; }
-  if(t.id === "tTts"){ META.tts = !META.tts; saveMeta();
-    t.setAttribute("aria-pressed", META.tts); t.textContent = META.tts ? "Activée" : "Coupée"; return; }
-  if(t.id === "tReset"){
-    if(confirm("Effacer la progression, les favoris et les phrases maîtrisées de " + LG().nom + " ? Cette action est définitive.")){
-      S = { prog:{}, favs:[], maitrise:[] }; save();
-      rendreChips(); rendreListe(); majEntete(); alert("Progression " + LG().nom + " effacée.");
-    }
-    return;
-  }
-});
-
-/* ── Démarrage ─────────────────────────────────────────────────────── */
-document.getElementById("tTts").setAttribute("aria-pressed", META.tts);
-document.getElementById("tTts").textContent = META.tts ? "Activée" : "Coupée";
-majLibelles(); rendreChips(); rendreListe(); majEntete();
-
-if("serviceWorker" in navigator){
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
-}
-</script>
-</body>
-</html>
+Aucune donnée ne sort de l'appareil. Aucun réseau n'est sollicité après le
+premier chargement.
