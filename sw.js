@@ -6,7 +6,7 @@
    → Incrémenter CACHE à chaque modification d'un fichier, sinon l'ancienne
      version restera servie depuis le cache.                               */
 
-const CACHE = "escale-v5";
+const CACHE = "escale-v6";
 
 const FICHIERS = [
   "./",
